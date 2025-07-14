@@ -31,6 +31,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { UnifiedSidebar } from "@/components/unified-sidebar"
 
 import FloatingNewQuoteButton from "@/components/floating-new-quote-button"
+import { FloatingSidebarButton } from "@/components/floating-sidebar-button"
 import SaveStatusIndicator from "@/components/save-status-indicator"
 import { useToast } from "@/hooks/use-toast"
 import TemplatesManager from "@/components/templates-manager";
@@ -83,11 +84,93 @@ export default function TravelQuoteGenerator() {
   // Calcular errores de ayuda y elementos del resumen
   const calculateHelpErrors = () => {
     let errors = 0;
+    // Datos generales
     if (!quoteTitle?.trim()) errors++;
     if (!clientName?.trim()) errors++;
     if (!destinationData.ciudad?.trim()) errors++;
     if (!clientData.cantidadPasajeros) errors++;
-    if (flights?.length === 0) errors++;
+
+    // Vuelos (si corresponde)
+    if (formMode === 'flight' || formMode === 'flight_hotel' || formMode === 'full') {
+      if (!flights || flights.length === 0) {
+        errors++;
+      } else {
+        flights.forEach((flight) => {
+          if (!flight.nombre?.trim()) errors++;
+          if (!flight.fechaSalida) errors++;
+          if (!flight.fechaRetorno) errors++;
+          // Fechas válidas
+          if (flight.fechaSalida && flight.fechaRetorno && new Date(flight.fechaSalida) > new Date(flight.fechaRetorno)) errors++;
+          // Precios obligatorios (al menos uno por tipo de pasajero)
+          if (clientData.cantidadAdultos > 0) {
+            const tienePrecioAdulto =
+              flight.precioAdultoMochila ||
+              flight.precioAdultoMochilaCarryOn ||
+              flight.precioAdultoMochilaCarryOnValija;
+            if (!tienePrecioAdulto) errors++;
+          }
+          if (clientData.cantidadMenores > 0) {
+            const tienePrecioMenor =
+              flight.precioMenorMochila ||
+              flight.precioMenorMochilaCarryOn ||
+              flight.precioMenorMochilaCarryOnValija;
+            if (!tienePrecioMenor) errors++;
+          }
+          if (clientData.cantidadInfantes > 0) {
+            if (!flight.precioInfante) errors++;
+          }
+        });
+      }
+    }
+
+    // Alojamientos (si corresponde)
+    if (formMode === 'flight_hotel' || formMode === 'full') {
+      if (!accommodations || accommodations.length === 0) {
+        errors++;
+      } else {
+        accommodations.forEach((acc) => {
+          if (!acc.nombre?.trim()) errors++;
+          if (!acc.ciudad?.trim()) errors++;
+          if (!acc.checkin) errors++;
+          if (!acc.checkout) errors++;
+          // Fechas válidas
+          if (acc.checkin && acc.checkout && new Date(acc.checkin) >= new Date(acc.checkout)) errors++;
+          // Precio obligatorio
+          if (!acc.precioTotal && (!acc.habitaciones || acc.habitaciones.length === 0 || acc.habitaciones.some((h: any) => !h.precio))) errors++;
+        });
+      }
+    }
+
+    // Traslados (solo en full)
+    if (formMode === 'full') {
+      if (!transfers || transfers.length === 0) {
+        // No es obligatorio tener traslados, pero si hay, validar
+      } else {
+        transfers.forEach((transfer) => {
+          if (!transfer.nombre?.trim()) errors++;
+          if (!transfer.origen?.trim()) errors++;
+          if (!transfer.destino?.trim()) errors++;
+          if (!transfer.fecha) errors++;
+          if (!transfer.hora) errors++;
+          if (!transfer.precio) errors++;
+        });
+      }
+    }
+
+    // Servicios/Actividades (solo en full)
+    if (formMode === 'full') {
+      if (!services || services.length === 0) {
+        // No es obligatorio tener servicios, pero si hay, validar
+      } else {
+        services.forEach((service) => {
+          if (!service.nombre?.trim()) errors++;
+          if (!service.descripcion?.trim()) errors++;
+          if (!service.fecha) errors++;
+          if (!service.precio) errors++;
+        });
+      }
+    }
+
     return errors;
   };
 
@@ -954,20 +1037,20 @@ export default function TravelQuoteGenerator() {
 
       <div className="max-w-7xl mx-auto">
         {/* Bloque de bienvenida siempre visible */}
-        <div className="mb-8 rounded-2xl bg-gradient-to-br from-blue-50 via-indigo-100 to-blue-100 shadow-xl px-6 py-8 md:px-12 md:py-12 flex flex-col items-center relative overflow-hidden">
-          <div className="flex justify-center mb-4 z-10">
-            <img src="/images/logo-negro.svg" alt="Iterio Logo" className="h-28 w-auto" />
+        <div className="mb-6 lg:mb-8 rounded-2xl bg-gradient-to-br from-blue-50 via-indigo-100 to-blue-100 shadow-xl px-4 py-6 md:px-8 lg:px-12 md:py-8 lg:py-12 flex flex-col items-center relative overflow-hidden">
+          <div className="flex justify-center mb-3 lg:mb-4 z-10">
+            <img src="/images/logo-negro.svg" alt="Iterio Logo" className="h-20 w-auto lg:h-28" />
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-1 z-10 drop-shadow-sm text-center">¡Crea tu cotización en minutos!</h1>
-          <p className="text-base md:text-lg font-normal text-gray-500 mt-1 z-10 text-center">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 mb-1 z-10 drop-shadow-sm text-center">¡Crea tu cotización en minutos!</h1>
+          <p className="text-sm md:text-base lg:text-lg font-normal text-gray-500 mt-1 z-10 text-center">
             {getSaludo()}, <span className="text-blue-600 font-semibold">{nombreUsuario}</span>
           </p>
           {isSavingTemplate && <p className="text-xs text-blue-600 mt-3 z-10">💾 Guardando configuración...</p>}
         </div>
         {/* Fin bloque de bienvenida */}
 
-        {/* Botón flotante siempre visible excepto en 'form' */}
-        {!pathname.startsWith('/admin') && (
+        {/* Botón flotante siempre visible excepto en 'form' y 'admin' */}
+        {!pathname.startsWith('/admin') && activeTab !== 'form' && (
           <FloatingNewQuoteButton
             onSelect={handleNewQuoteMode}
           />
@@ -1035,7 +1118,7 @@ export default function TravelQuoteGenerator() {
                 else if (idx === 4) setActiveTab('result');
               }}
             />
-            <Tabs value={activeTab} onValueChange={(tab) => {
+            <Tabs value={activeTab} onValueChange={(tab: string) => {
               setActiveTab(tab);
               if (tab === "form") setFormStep(0);
             }} className="space-y-6">
@@ -1062,18 +1145,29 @@ export default function TravelQuoteGenerator() {
                   hasUnsavedChanges={hasUnsavedChanges}
                 />
                 
-                <div className={`grid gap-8 relative px-2 pb-4 lg:pr-0 ${featuresEnabled.sidebar && showUnifiedSidebar ? 'grid-cols-1 lg:grid-cols-[1fr_370px]' : 'grid-cols-1'}` }>
+                <div className={`grid gap-4 lg:gap-8 relative px-2 pb-4 lg:pr-0 ${featuresEnabled.sidebar && showUnifiedSidebar ? 'grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_370px]' : 'grid-cols-1'}` }>
                   <div className="min-w-0">
-                    {/* Botón para mostrar el sidebar cuando está oculto (solo si el sidebar está habilitado) */}
+                    {/* Botón contextual para mostrar el sidebar o asistencia, reemplazando al botón ovalado */}
                     {featuresEnabled.sidebar && !showUnifiedSidebar && (
-                      <div className="hidden lg:flex w-full justify-end mb-4">
+                      <div className="w-full flex justify-end mb-4">
                         <button
                           onClick={() => setShowUnifiedSidebar(true)}
-                          className="flex flex-row items-center gap-2 px-4 py-2 bg-gray-50 rounded-full drop-shadow-md text-sm text-gray-700 hover:bg-gray-100 border border-gray-200 font-medium"
+                          className={`flex flex-row items-center gap-2 px-4 py-2 rounded-full font-medium text-sm shadow transition
+                            ${calculateHelpErrors() > 0
+                              ? 'bg-red-500 text-white hover:bg-red-600'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'}
+                          `}
                           type="button"
                         >
-                          <Eye className="h-5 w-5 mr-1" />
-                          <span>Mostrar panel de asistencia</span>
+                          {calculateHelpErrors() > 0 ? (
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          ) : (
+                            // Icono de ojo abierto
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M1.5 12s4-7 10.5-7 10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z" /><circle cx="12" cy="12" r="3" /></svg>
+                          )}
+                          {calculateHelpErrors() > 0
+                            ? `Hay ${calculateHelpErrors()} error${calculateHelpErrors() === 1 ? '' : 'es'}, pulse para asistencia.`
+                            : 'Mostrar panel de asistencia'}
                         </button>
                       </div>
                     )}
@@ -1087,7 +1181,7 @@ export default function TravelQuoteGenerator() {
                             </CardDescription>
                           </CardHeader>
                           <CardContent className="space-y-4">
-                            <div className="flex gap-4">
+                            <div className="flex flex-col md:flex-row gap-4">
                               <div className="flex-1">
                                 <Label htmlFor="quote-title">Título de la cotización</Label>
                                 <Input
@@ -1182,22 +1276,24 @@ export default function TravelQuoteGenerator() {
                       />
                     )}
                     {/* Navegación de subpasos */}
-                    <div className="flex justify-between mt-6 gap-4">
+                    <div className="flex flex-col sm:flex-row justify-between mt-6 gap-3 sm:gap-4">
                       <Button
                         variant="outline"
                         disabled={formStep === 0}
                         onClick={() => setFormStep((s) => Math.max(0, s - 1))}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-200 bg-white/70 text-blue-600 shadow-sm hover:bg-blue-50/80 hover:border-blue-300 transition-all duration-150 font-medium text-sm"
+                        className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg border border-blue-200 bg-white/70 text-blue-600 shadow-sm hover:bg-blue-50/80 hover:border-blue-300 transition-all duration-150 font-medium text-sm"
                       >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                        Anterior
+                        <span className="hidden sm:inline">Anterior</span>
+                        <span className="sm:hidden">Atrás</span>
                       </Button>
                       <Button
                         onClick={() => setFormStep((s) => Math.min(formSubSteps.length - 1, s + 1))}
                         disabled={formStep === formSubSteps.length - 1}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-400/70 to-blue-600/70 text-white shadow-sm hover:from-blue-500/80 hover:to-blue-700/80 transition-all duration-150 font-medium text-sm"
+                        className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-gradient-to-r from-blue-400/70 to-blue-600/70 text-white shadow-sm hover:from-blue-500/80 hover:to-blue-700/80 transition-all duration-150 font-medium text-sm"
                       >
-                        Siguiente
+                        <span className="hidden sm:inline">Siguiente</span>
+                        <span className="sm:hidden">Siguiente</span>
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                       </Button>
                     </div>

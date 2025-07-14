@@ -45,14 +45,17 @@ export const FloatingSidebarButton: React.FC<FloatingSidebarButtonProps> = ({
   const content = getButtonContent();
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-4 right-4 lg:bottom-6 lg:right-6 z-50">
       <Button
         onClick={onShow}
         variant={content.variant}
-        className={`${content.className} rounded-full px-4 py-3 flex items-center gap-2 transition-all duration-200 hover:scale-105`}
+        className={`${content.className} rounded-full px-3 py-2 lg:px-4 lg:py-3 flex items-center gap-1 lg:gap-2 transition-all duration-200 hover:scale-105 text-sm lg:text-base`}
       >
         {content.icon}
-        <span className="font-medium">{content.text}</span>
+        <span className="font-medium hidden sm:inline">{content.text}</span>
+        <span className="font-medium sm:hidden">
+          {helpErrors > 0 ? `${helpErrors}` : summaryItems > 0 ? 'Ver' : 'Ayuda'}
+        </span>
       </Button>
     </div>
   );

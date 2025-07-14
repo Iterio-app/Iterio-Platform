@@ -34,16 +34,21 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
   if (!visible) return null;
 
   return (
-    <Card className="bg-white shadow-lg border-0 w-96">
+    <Card className="bg-white shadow-lg border-0 w-80 lg:w-96 max-w-full">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <CardTitle className="text-base lg:text-lg font-semibold text-gray-800 flex items-center gap-2">
             {activeTab === 'help' ? (
-              <Info className="h-5 w-5 text-blue-600" />
+              <Info className="h-4 w-4 lg:h-5 lg:w-5 text-blue-600" />
             ) : (
-              <Calculator className="h-5 w-5 text-blue-600" />
+              <Calculator className="h-4 w-4 lg:h-5 lg:w-5 text-blue-600" />
             )}
-            {activeTab === 'help' ? 'Ayuda del formulario' : 'Resumen de cotización'}
+            <span className="hidden sm:inline">
+              {activeTab === 'help' ? 'Ayuda del formulario' : 'Resumen de cotización'}
+            </span>
+            <span className="sm:hidden">
+              {activeTab === 'help' ? 'Ayuda' : 'Resumen'}
+            </span>
           </CardTitle>
           <Button
             variant="ghost"
@@ -59,20 +64,22 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
       <CardContent className="pt-0">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'help' | 'summary')}>
           <TabsList className="grid grid-cols-2 w-full mb-4 bg-gray-50 rounded-lg">
-            <TabsTrigger value="help" className="flex items-center gap-2 justify-center">
-              <Info className="h-4 w-4" />
-              Ayuda
+            <TabsTrigger value="help" className="flex items-center gap-1 lg:gap-2 justify-center text-xs lg:text-sm">
+              <Info className="h-3 w-3 lg:h-4 lg:w-4" />
+              <span className="hidden sm:inline">Ayuda</span>
+              <span className="sm:hidden">Ayuda</span>
               {helpErrors > 0 && (
-                <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full">
+                <span className="bg-red-100 text-red-700 text-xs px-1 lg:px-2 py-1 rounded-full">
                   {helpErrors}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="summary" className="flex items-center gap-2 justify-center">
-              <Calculator className="h-4 w-4" />
-              Resumen
+            <TabsTrigger value="summary" className="flex items-center gap-1 lg:gap-2 justify-center text-xs lg:text-sm">
+              <Calculator className="h-3 w-3 lg:h-4 lg:w-4" />
+              <span className="hidden sm:inline">Resumen</span>
+              <span className="sm:hidden">Resumen</span>
               {summaryItems > 0 && (
-                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
+                <span className="bg-blue-100 text-blue-700 text-xs px-1 lg:px-2 py-1 rounded-full">
                   {summaryItems}
                 </span>
               )}
@@ -80,13 +87,13 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
           </TabsList>
 
           <TabsContent value="help" className="mt-0">
-            <div className="max-h-[700px] overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            <div className="max-h-[500px] lg:max-h-[700px] overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
               <HelpContent formData={formData} />
             </div>
           </TabsContent>
 
           <TabsContent value="summary" className="mt-0">
-            <div className="max-h-[700px] overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            <div className="max-h-[500px] lg:max-h-[700px] overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
               <SummaryContent formData={formData} />
             </div>
           </TabsContent>

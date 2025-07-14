@@ -33,11 +33,12 @@ export default function FloatingNewQuoteButton({ onSelect }: { onSelect: (mode: 
       <PopoverTrigger asChild>
         <Button
           size="default"
-          className="fixed bottom-6 right-6 z-50 shadow-lg bg-blue-600 hover:bg-blue-700 text-white rounded-full px-4 py-2 text-base font-semibold flex items-center gap-2 transition-transform duration-200 hover:scale-110"
+          className="fixed bottom-4 right-4 lg:bottom-6 lg:right-6 z-50 shadow-lg bg-blue-600 hover:bg-blue-700 text-white rounded-full px-3 py-2 lg:px-4 lg:py-2 text-sm lg:text-base font-semibold flex items-center gap-1 lg:gap-2 transition-transform duration-200 hover:scale-110"
           aria-label="Nueva Cotización"
         >
-          <span className="text-xl">+</span>
-          Nueva Cotización
+          <span className="text-lg lg:text-xl">+</span>
+          <span className="hidden sm:inline">Nueva Cotización</span>
+          <span className="sm:hidden">Nueva</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent sideOffset={10} className="w-[260px] p-2 py-2 rounded-xl shadow-xl border-0">
