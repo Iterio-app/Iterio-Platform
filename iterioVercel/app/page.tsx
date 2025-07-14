@@ -101,23 +101,23 @@ export default function TravelQuoteGenerator() {
           if (!flight.fechaRetorno) errors++;
           // Fechas válidas
           if (flight.fechaSalida && flight.fechaRetorno && new Date(flight.fechaSalida) > new Date(flight.fechaRetorno)) errors++;
-          // Precios obligatorios (al menos uno por tipo de pasajero)
+          // Precios obligatorios (al menos uno por tipo de pasajero y check activo)
           if (clientData.cantidadAdultos > 0) {
             const tienePrecioAdulto =
-              flight.precioAdultoMochila ||
-              flight.precioAdultoMochilaCarryOn ||
-              flight.precioAdultoMochilaCarryOnValija;
+              (flight.precioAdultoMochila && flight.mostrarPrecioAdultoMochila) ||
+              (flight.precioAdultoMochilaCarryOn && flight.mostrarPrecioAdultoMochilaCarryOn) ||
+              (flight.precioAdultoMochilaCarryOnValija && flight.mostrarPrecioAdultoMochilaCarryOnValija);
             if (!tienePrecioAdulto) errors++;
           }
           if (clientData.cantidadMenores > 0) {
             const tienePrecioMenor =
-              flight.precioMenorMochila ||
-              flight.precioMenorMochilaCarryOn ||
-              flight.precioMenorMochilaCarryOnValija;
+              (flight.precioMenorMochila && flight.mostrarPrecioMenorMochila) ||
+              (flight.precioMenorMochilaCarryOn && flight.mostrarPrecioMenorMochilaCarryOn) ||
+              (flight.precioMenorMochilaCarryOnValija && flight.mostrarPrecioMenorMochilaCarryOnValija);
             if (!tienePrecioMenor) errors++;
           }
           if (clientData.cantidadInfantes > 0) {
-            if (!flight.precioInfante) errors++;
+            if (!(flight.precioInfante && flight.mostrarPrecioInfante)) errors++;
           }
         });
       }
