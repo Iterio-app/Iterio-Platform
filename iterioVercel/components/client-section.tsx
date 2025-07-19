@@ -105,6 +105,12 @@ export default function ClientSection({ clientData, onChange, mostrarCantidadPas
             </Select>
           </div>
         </div>
+        {/* Advertencia si hay menores o infantes sin adultos */}
+        {(clientData.cantidadAdultos === 0 && (clientData.cantidadMenores > 0 || clientData.cantidadInfantes > 0)) && (
+          <div className="text-sm text-gray-500 mt-2">
+            Recuerde avisarle a su cliente que necesita autorización de menores para realizar el viaje.
+          </div>
+        )}
         <div className="flex items-center gap-2 mt-4">
           <input
             id="mostrarCantidadPasajeros"

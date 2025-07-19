@@ -62,11 +62,19 @@ export interface ProcessingStatus {
 // Tipo para templates
 export interface Template {
   id: string;
+  user_id: string;
   name: string;
   template_data: {
-    logo?: string | null;
-    primaryColor?: string;
-    fontFamily?: string;
-    agencyName?: string;
+    primaryColor: string;
+    secondaryColor: string;
+    fontFamily: string;
+    logo: string | null;
+    agencyName: string;
+    agencyAddress: string;
+    agencyPhone: string;
+    agencyEmail: string;
+    validityText: string;
   };
+  created_at: string;
+  updated_at: string;
 } 

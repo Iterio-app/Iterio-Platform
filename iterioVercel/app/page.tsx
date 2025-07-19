@@ -20,12 +20,15 @@ import SummarySection from "@/components/summary-section"
 import QuotesHistory from "@/components/quotes-history"
 import { LoginForm } from "@/components/auth/login-form"
 import UserMenu from "@/components/auth/user-menu"
-import PdfGenerator from "@/components/pdf-generator"
+// import PdfGenerator from "@/components/pdf-generator"
 import { supabase } from "@/lib/supabase"
 import { useTemplates } from "@/hooks/use-templates"
 import { useQuotes } from "@/hooks/use-quotes"
-import type { User } from "@supabase/supabase-js"
 import type { Quote } from "@/lib/supabase"
+
+// Definir tipos locales para evitar problemas de importación
+type User = any
+type Session = any
 import { Stepper } from "@/components/stepper"
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { UnifiedSidebar } from "@/components/unified-sidebar"
@@ -42,11 +45,13 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { FormDataForSidebar, ProcessingStatus, Template } from "@/lib/types";
 
 export default function TravelQuoteGenerator() {
+  // --- TODOS LOS HOOKS VAN AQUÍ ---
   const [user, setUser] = useState<User | null>(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -294,14 +299,14 @@ export default function TravelQuoteGenerator() {
 
   // Verificar autenticación al cargar
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
       setUser(session?.user ?? null)
       setIsCheckingAuth(false)
     })
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       setUser(session?.user ?? null)
       setIsCheckingAuth(false)
     })
@@ -387,7 +392,7 @@ export default function TravelQuoteGenerator() {
     try {
       await loadUserTemplates();
     } catch (err: any) {
-      console.error('Error inesperado al obtener templates:', err);
+      console.error('Error inesperado al obtener templates:', err, JSON.stringify(err));
       toast({
         title: "Error al cargar templates",
         description: err.message || 'Error al cargar templates',
@@ -700,20 +705,31 @@ export default function TravelQuoteGenerator() {
           currency: flight.currency,
         }
       }),
-      hoteles: accommodations.map((acc) => ({
-        nombre: acc.nombre,
-        ciudad: acc.ciudad,
-        checkin: acc.checkin,
-        checkout: acc.checkout,
-        cantidadHabitaciones: acc.cantidadHabitaciones,
-        habitaciones: acc.habitaciones || [],
-        precioTotal: acc.precioTotal || 0,
-        mostrarPrecio: acc.mostrarPrecio,
-        imagenes: acc.imagenes || [],
-        textoLibre: acc.textoLibre,
-        useCustomCurrency: acc.useCustomCurrency,
-        currency: acc.currency,
-      })),
+      hoteles: accommodations.map((acc) => {
+        // Usar siempre el valor del formulario si existe
+        let cantidadNoches = acc.cantidadNoches;
+        if (cantidadNoches === undefined && acc.checkin && acc.checkout) {
+          const checkinDate = new Date(acc.checkin);
+          const checkoutDate = new Date(acc.checkout);
+          const diffTime = checkoutDate.getTime() - checkinDate.getTime();
+          cantidadNoches = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)));
+        }
+        return {
+          nombre: acc.nombre,
+          ciudad: acc.ciudad,
+          checkin: acc.checkin,
+          checkout: acc.checkout,
+          cantidadHabitaciones: acc.cantidadHabitaciones,
+          habitaciones: acc.habitaciones || [],
+          precioTotal: acc.precioTotal || 0,
+          mostrarPrecio: acc.mostrarPrecio,
+          imagenes: acc.imagenes || [],
+          textoLibre: acc.textoLibre,
+          useCustomCurrency: acc.useCustomCurrency,
+          currency: acc.currency,
+          cantidadNoches: cantidadNoches,
+        }
+      }),
       traslados: transfers.map((transfer) => ({
         nombre: transfer.nombre,
         origen: transfer.origen,
@@ -751,6 +767,32 @@ export default function TravelQuoteGenerator() {
       },
       observaciones: summaryData.observaciones,
       mostrarCantidadPasajeros,
+      // Desglose de totales por moneda (corrigiendo para sumar solo si hay precio y moneda definida)
+      totalesPorMoneda: (() => {
+        const totales: Record<string, number> = {};
+        // Hoteles
+        accommodations.forEach(acc => {
+          const moneda = acc.useCustomCurrency && acc.currency ? acc.currency : selectedCurrency;
+          if (acc.precioTotal && moneda) {
+            totales[moneda] = (totales[moneda] || 0) + Number(acc.precioTotal);
+          }
+        });
+        // Traslados
+        transfers.forEach(transfer => {
+          const moneda = transfer.useCustomCurrency && transfer.currency ? transfer.currency : selectedCurrency;
+          if (transfer.precio && moneda) {
+            totales[moneda] = (totales[moneda] || 0) + Number(transfer.precio);
+          }
+        });
+        // Servicios
+        services.forEach(service => {
+          const moneda = service.useCustomCurrency && service.currency ? service.currency : selectedCurrency;
+          if (service.precio && moneda) {
+            totales[moneda] = (totales[moneda] || 0) + Number(service.precio);
+          }
+        });
+        return totales;
+      })(),
     }
   }
 
@@ -808,25 +850,89 @@ export default function TravelQuoteGenerator() {
     }
   }
 
-  const downloadPdf = async () => {
-    setIsDownloading(true)
-    setShowPdfGenerator(true)
-  }
-
-  const handlePdfComplete = (success: boolean, error?: string) => {
-    setIsDownloading(false)
-    setShowPdfGenerator(false)
-
-    if (!success && error) {
-      setError(error)
-    }
-  }
-
-  const viewPreview = () => {
+  const viewPreview = async () => {
     if (pdfUrl) {
-      window.open(pdfUrl, "_blank")
+      const response = await fetch(pdfUrl, { mode: 'cors' });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
     }
   }
+
+  const isSupabasePdfUrl = (url: string | null) => {
+    if (!url) return false;
+    return url.includes('/storage/v1/object/public/quotes-pdfs/');
+  };
+
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
+    try {
+      // --- Generar nombre de archivo personalizado ---
+      const ciudad = destinationData.ciudad?.trim() || 'Destino';
+      const año = destinationData.año || new Date().getFullYear().toString();
+      const hoy = new Date();
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const fechaStr = `${pad(hoy.getDate())}-${pad(hoy.getMonth() + 1)}-${hoy.getFullYear()}`;
+      const nombreArchivo = `${ciudad}_${año}_${fechaStr}`.replace(/\s+/g, '_');
+      // --- Fin nombre personalizado ---
+      if (isSupabasePdfUrl(pdfUrl)) {
+        // Descargar el PDF como blob para forzar el nombre y evitar abrir en la misma pestaña
+        const response = await fetch(pdfUrl!, { mode: 'cors' });
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${nombreArchivo}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        return;
+      }
+      // Obtener HTML seguro del iframe
+      const iframe = document.getElementById('pdf-preview-iframe') as HTMLIFrameElement | null;
+      const html =
+        iframe && iframe.contentDocument && iframe.contentDocument.documentElement
+          ? iframe.contentDocument.documentElement.outerHTML
+          : null;
+      if (!html) {
+        alert('No se pudo obtener el HTML de la vista previa.');
+        setIsDownloadingPdf(false);
+        return;
+      }
+      const response = await fetch('/api/save-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quoteId: currentQuoteId,
+          html,
+        }),
+      });
+      const data = await response.json();
+      if (data.success && data.pdfUrl) {
+        setPdfUrl(data.pdfUrl);
+        // Descargar el PDF generado como blob
+        const response = await fetch(data.pdfUrl, { mode: 'cors' });
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${nombreArchivo}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        alert('Error al generar el PDF.');
+      }
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   const { toast } = useToast();
   // Estado para modal de template
@@ -983,11 +1089,34 @@ export default function TravelQuoteGenerator() {
   const handleNewQuoteMode = async (mode: 'flight' | 'flight_hotel' | 'full') => {
     setFormMode(mode);
     clearForm();
-    await fetchTemplates();
     setShowTemplateSelectModal(true);
+    await fetchTemplates();
   };
 
-  // Mostrar loading mientras verifica autenticación
+  // 1. Agregar un estado para mostrar la vista previa
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Estado para saber si el PDF existe
+  const [pdfExists, setPdfExists] = useState(true);
+
+  // Efecto para verificar si el PDF existe cuando cambia pdfUrl
+  useEffect(() => {
+    if (!pdfUrl) {
+      setPdfExists(false);
+      return;
+    }
+    let cancelled = false;
+    fetch(pdfUrl, { method: 'HEAD' })
+      .then(res => {
+        if (!cancelled) setPdfExists(res.ok);
+      })
+      .catch(() => {
+        if (!cancelled) setPdfExists(false);
+      });
+    return () => { cancelled = true; };
+  }, [pdfUrl]);
+
+  // --- LOS RETURNS CONDICIONALES VAN DESPUÉS DE LOS HOOKS ---
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -999,7 +1128,6 @@ export default function TravelQuoteGenerator() {
     )
   }
 
-  // Mostrar login si no está autenticado
   if (!user) {
     return <LoginForm setView={(view) => {
       if (view === 'check-email') {
@@ -1031,9 +1159,9 @@ export default function TravelQuoteGenerator() {
           />
         )}
 
-      {showPdfGenerator && (
-        <PdfGenerator data={prepareQuoteData()} template={template} onComplete={handlePdfComplete} />
-      )}
+      {/* {showPdfGenerator && (
+        <PdfGenerator data={prepareQuoteData()} template={template} />
+      )} */}
 
       <div className="max-w-7xl mx-auto">
         {/* Bloque de bienvenida siempre visible */}
@@ -1061,6 +1189,9 @@ export default function TravelQuoteGenerator() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Selecciona un template para tu cotización</DialogTitle>
+                <DialogDescription>
+                  Elige un template para personalizar tu cotización. También puedes crear uno temporal si lo deseas.
+                </DialogDescription>
               </DialogHeader>
               {userTemplates.length > 0 ? (
                 <>
@@ -1346,29 +1477,38 @@ export default function TravelQuoteGenerator() {
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                           <p className="text-green-800 font-medium">✅ Cotización generada exitosamente</p>
                           <p className="text-green-600 text-sm mt-1">
-                            Vista previa disponible abajo. Descarga el PDF o ábrelo en nueva ventana.
+                            Vista previa disponible abajo. Usa el botón Imprimir para guardar la cotización en PDF.
                           </p>
                         </div>
-
                         <div className="flex gap-4">
-                          <Button onClick={downloadPdf} className="flex-1" disabled={isDownloading}>
-                            <Download className="h-4 w-4 mr-2" />
-                            {isDownloading ? "Generando PDF..." : "Descargar PDF"}
+                          <Button
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                            style={{ backgroundColor: '#2563eb' }}
+                            onClick={handleDownloadPdf}
+                            disabled={isDownloadingPdf}
+                          >
+                            {isDownloadingPdf ? (
+                              <span className="flex items-center"><svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg>Generando PDF...</span>
+                            ) : (
+                              <><Download className="h-4 w-4 mr-2" />Descargar cotización en PDF</>
+                            )}
                           </Button>
                           <Button variant="outline" onClick={viewPreview} className="flex-1">
                             <Eye className="h-4 w-4 mr-2" />
-                            Abrir en Nueva Ventana
+                            Abrir cotización en Nueva Pestaña
                           </Button>
                         </div>
-
-                        <div className="border rounded-lg overflow-hidden">
-                          <iframe
-                            src={pdfUrl}
-                            className="w-full h-[600px]"
-                            title="Vista previa del PDF"
-                            style={{ border: "none" }}
-                          />
-                        </div>
+                        {pdfUrl && (
+                          <div className="border rounded-lg overflow-hidden mt-2">
+                            <iframe
+                              id="pdf-preview-iframe"
+                              src={pdfUrl}
+                              className="w-full h-[600px]"
+                              title="Vista previa del PDF"
+                              style={{ border: "none" }}
+                            />
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="text-center py-8 text-gray-500">

@@ -18,6 +18,7 @@ export interface TemplateConfig {
 
 export interface Template {
   id: string
+  user_id: string
   name: string
   template_data: TemplateConfig
   created_at: string

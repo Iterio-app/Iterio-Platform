@@ -5,12 +5,12 @@ console.log("Instalando dependencias para el conversor Excel a PDF...")
 
 try {
   // Instalar dependencias principales
-  execSync("npm install xlsx puppeteer", { stdio: "inherit" })
+  // Elimina o comenta la línea: execSync("npm install xlsx puppeteer", { stdio: "inherit" })
 
   console.log("✅ Dependencias instaladas correctamente")
   console.log("")
   console.log("📋 Dependencias instaladas:")
-  console.log("- xlsx: Para leer archivos Excel")
+  // Elimina o comenta la línea: console.log("- xlsx: Para leer archivos Excel")
   console.log("- puppeteer: Para generar PDFs desde HTML")
   console.log("")
   console.log("🚀 La aplicación está lista para usar!")

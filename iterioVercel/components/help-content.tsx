@@ -62,11 +62,28 @@ export const HelpContent: React.FC<HelpContentProps> = ({ formData }) => {
       condition: (data) => !data.destinationData?.meses?.length
     },
     {
-      id: 'client_adultos',
-      label: 'Cantidad de adultos',
+      id: 'client_passengers',
+      label: 'Cantidad de pasajeros',
       required: true,
       section: 'Información General',
-      condition: (data) => data.clientData?.cantidadAdultos === 0
+      condition: (data) => {
+        const adultos = data.clientData?.cantidadAdultos || 0;
+        const menores = data.clientData?.cantidadMenores || 0;
+        const infantes = data.clientData?.cantidadInfantes || 0;
+        return (adultos + menores + infantes) === 0;
+      }
+    },
+    {
+      id: 'client_minors_without_adults',
+      label: 'Menores viajando sin adultos',
+      required: false,
+      section: 'Información General',
+      condition: (data) => {
+        const adultos = data.clientData?.cantidadAdultos || 0;
+        const menores = data.clientData?.cantidadMenores || 0;
+        const infantes = data.clientData?.cantidadInfantes || 0;
+        return adultos === 0 && (menores > 0 || infantes > 0);
+      }
     },
 
     // VUELOS (solo si el modo incluye vuelos)
@@ -637,7 +654,11 @@ export const HelpContent: React.FC<HelpContentProps> = ({ formData }) => {
             {sectionErrors.map(error => (
               <li key={error.id} className="flex items-start gap-2 text-sm">
                 <span className={`mt-0.5 ${error.required ? 'text-red-500' : 'text-yellow-500'}`}>
-                  {error.required ? '⚠️' : '💡'}
+                  {error.required ? (
+                    <AlertTriangle className="w-4 h-4" />
+                  ) : (
+                    <Info className="w-4 h-4" />
+                  )}
                 </span>
                 <span className={`${error.required ? 'text-red-700' : 'text-yellow-700'} leading-relaxed`}>
                   {typeof error.label === 'function' ? error.label(formData) : error.label}

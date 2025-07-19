@@ -430,7 +430,7 @@ export default function SummarySection({
               </ul>
             </div>
             <div className="mt-2">
-              <Alert variant="default" className="text-xs text-gray-600 italic">
+              <Alert variant="default" className="text-xs text-gray-600 text-center italic">
                 El total general <b>no incluye los vuelos</b>. Consulta la tabla de arriba para ver los precios de vuelos por persona y tipo de equipaje.
               </Alert>
             </div>
@@ -442,7 +442,7 @@ export default function SummarySection({
                 disabled={isGenerating}
               >
                 <FileSpreadsheet className="h-5 w-5" />
-                {isGenerating ? "Generando PDF..." : "Generar PDF"}
+                {isGenerating ? "Generando vista previa..." : "Generar vista previa"}
               </Button>
             </div>
           </div>

@@ -630,7 +630,7 @@ body {
       }
       
       ${
-        Object.keys(data.cliente || {}).length > 0
+        Object.keys(data.cliente || {}).length > 0 && data.mostrarCantidadPasajeros
           ? `
       <div class="section content-section">
         <h2 class="section-title">DATOS DEL CLIENTE</h2>
@@ -660,9 +660,8 @@ body {
         vuelo.fechaSalida || vuelo.fechaRetorno
           ? `
         <div class="flight-info">
-          <div class="flight-info-item"><strong>Fechas del vuelo:</strong></div>
-          ${vuelo.fechaSalida ? `<div class="flight-info-item"><strong>Salida:</strong> ${formatDate(vuelo.fechaSalida)}</div>` : ""}
-          ${vuelo.fechaRetorno ? `<div class="flight-info-item"><strong>Retorno:</strong> ${formatDate(vuelo.fechaRetorno)}</div>` : ""}
+          ${vuelo.fechaSalida ? `<div class="flight-info-item"><strong>Fecha de Salida:</strong> ${formatDate(vuelo.fechaSalida)}</div>` : ""}
+          ${vuelo.fechaRetorno ? `<div class="flight-info-item"><strong>Fecha de Retorno:</strong> ${formatDate(vuelo.fechaRetorno)}</div>` : ""}
         </div>
       `
           : ""
@@ -804,19 +803,34 @@ body {
             (hotel, index) => `
           <div class="item-card">
             <h3 style="color: ${template.primaryColor}; margin-bottom: 8px;">${hotel.nombre || `Alojamiento ${index + 1}`}</h3>
-            ${hotel.ciudad ? `<div class="accommodation-city"><strong style="color: ${template.primaryColor};">Ciudad:</strong> ${hotel.ciudad}</div>` : ""}
-            ${renderImageGallery(hotel.imagenes, `Hotel ${index + 1}`)}
-            <div class="item-details">
-              <div><strong>Check-in:</strong> ${formatDate(hotel.checkin)}</div>
-              <div><strong>Check-out:</strong> ${formatDate(hotel.checkout)}</div>
-              ${hotel.cantidadHabitaciones ? `<div><strong>Habitaciones:</strong> ${hotel.cantidadHabitaciones}</div>` : ""}
-            </div>
+            ${hotel.imagenes && hotel.imagenes.length === 1
+  ? `
+  <div style="display: flex; gap: 24px; align-items: stretch; margin-bottom: 16px;">
+    <div style="flex: 1; max-width: 50%; display: flex; align-items: center; justify-content: center;">
+      <img src="${hotel.imagenes[0]}" alt="Hotel" style="max-width: 100%; max-height: 180px; border-radius: 8px; border: 1px solid #e2e8f0; object-fit: contain; background: #f8f9fa;" />
+    </div>
+    <div style="flex: 1; max-width: 50%; display: flex; flex-direction: column; justify-content: space-between; height: 180px; gap: 0;">
+      ${hotel.ciudad ? `<div class="accommodation-city" style="color: #222; font-size: 14px; margin-bottom: 0;"><strong style="color: ${template.primaryColor};">Ciudad:</strong> ${hotel.ciudad}</div>` : ""}
+      <div><strong style="color: ${template.primaryColor};">Check-in:</strong> ${formatDate(hotel.checkin)}</div>
+      <div><strong style="color: ${template.primaryColor};">Check-out:</strong> ${formatDate(hotel.checkout)}</div>
+      ${hotel.cantidadHabitaciones ? `<div><strong style="color: ${template.primaryColor};">Habitaciones:</strong> ${hotel.cantidadHabitaciones}</div>` : ""}
+    </div>
+  </div>
+` : `
+  ${hotel.imagenes && hotel.imagenes.length > 1 ? renderImageGallery(hotel.imagenes, `Hotel`) : ""}
+  ${hotel.ciudad ? `<div class="accommodation-city" style="color: #222; font-size: 14px; font-style: italic; margin-bottom: 0;"><strong style="color: ${template.primaryColor};">Ciudad:</strong> ${hotel.ciudad}</div>` : ""}
+  <div class="item-details">
+    <div><strong style="color: ${template.primaryColor};">Check-in:</strong> ${formatDate(hotel.checkin)}</div>
+    <div><strong style="color: ${template.primaryColor};">Check-out:</strong> ${formatDate(hotel.checkout)}</div>
+    ${hotel.cantidadHabitaciones ? `<div><strong style="color: ${template.primaryColor};">Habitaciones:</strong> ${hotel.cantidadHabitaciones}</div>` : ""}
+  </div>
+`}
             
             ${
               hotel.habitaciones && hotel.habitaciones.length > 0
                 ? `
               <div style="margin: 20px 0;">
-                <h4 style="color: ${template.primaryColor}; margin-bottom: 15px; font-size: 16px;">Detalles de habitaciones:</h4>
+                <h4 style="color: ${template.primaryColor}; margin-bottom: 15px; font-size: 16px;">Detalle de habitaciones:</h4>
                 ${hotel.habitaciones
                   .map(
                     (habitacion, roomIndex) => `
@@ -824,17 +838,17 @@ body {
                     <h5>Habitación ${roomIndex + 1}</h5>
                     <div class="room-info">
                       <div>
-                        <strong>Tipo:</strong>
+                        <strong>Tipo de habitación:</strong>
                         <span>${habitacion.tipoHabitacion || "No especificado"}</span>
                       </div>
                       <div>
-                        <strong>Régimen:</strong>
+                        <strong>Régimen de comidas:</strong>
                         <span>${getRegimenLabel(habitacion.regimen)}</span>
                       </div>
-                      <div>
-                        <strong>Precio:</strong>
+                      ${hotel.mostrarPrecio ? `<div>
+                        <strong>Precio por noche:</strong>
                         <span style="color: ${template.primaryColor}; font-weight: bold;">${formatCurrency(Number.parseFloat(habitacion.precio) || 0, hotel.useCustomCurrency && hotel.currency ? hotel.currency : data.totales?.currency || "USD")}</span>
-                      </div>
+                      </div>` : ""}
                     </div>
                   </div>
                 `,
@@ -928,18 +942,42 @@ body {
       }
       
       ${
-        data.totales?.mostrar_total
+        data.totalesPorMoneda && Object.keys(data.totalesPorMoneda).filter(mon => data.totalesPorMoneda[mon] > 0).length > 1
           ? `
     <div class="totals total-section">
       <h2 class="section-title">TOTAL DE LA COTIZACIÓN</h2>
       <div style="text-align: center; padding: 15px;">
-        <div style="font-size: 32px; font-weight: bold; color: ${template.primaryColor};">
-          ${formatCurrency(data.totales?.total || 0, data.totales?.currency || "USD")}
-        </div>
+        ${Object.entries(data.totalesPorMoneda)
+          .filter(([moneda, total]) => moneda && Number(total) > 0)
+          .map(
+            ([moneda, total]) =>
+              `<div style="font-size: 24px; font-weight: bold; color: ${template.primaryColor}; margin-bottom: 6px;">${moneda} ${Number(total).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
+          )
+          .join("")}
+      </div>
+      <div style="background: #e0e7ff; color: #1e40af; border-radius: 6px; padding: 10px 16px; margin: 10px auto 0 auto; max-width: 500px; font-size: 14px; border: 1px solid #2563eb; text-align: center;">
+        <strong>Nota:</strong> El precio total no incluye los vuelos. Si la tarifa no está discriminada en la cotización, consúltela con su agente.
       </div>
     </div>
     `
-          : ""
+          : data.totalesPorMoneda && Object.keys(data.totalesPorMoneda).filter(mon => data.totalesPorMoneda[mon] > 0).length === 1
+            ? `
+    <div class="totals total-section">
+      <h2 class="section-title">TOTAL DE LA COTIZACIÓN</h2>
+      <div style="text-align: center; padding: 15px;">
+        <div style="font-size: 32px; font-weight: bold; color: ${template.primaryColor};">
+          ${(() => {
+            const [moneda, total] = Object.entries(data.totalesPorMoneda).find(([_, t]) => Number(t) > 0) || [data.totales?.currency || "USD", data.totales?.total || 0];
+            return `${moneda} ${Number(total).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          })()}
+        </div>
+      </div>
+      <div style="background: #e0e7ff; color: #1e40af; border-radius: 6px; padding: 10px 16px; margin: 10px auto 0 auto; max-width: 500px; font-size: 14px; border: 1px solid #2563eb; text-align: center;">
+        <strong>Nota:</strong> El precio total no incluye los vuelos. Si la tarifa no está discriminada en la cotización, consúltela con su agente.
+      </div>
+    </div>
+    `
+            : ""
       }
       
       ${
@@ -963,7 +1001,7 @@ body {
           ${template.agencyPhone ? `<div class="footer-item"><span class="footer-label">Teléfono:</span>${template.agencyPhone}</div>` : ""}
           ${template.agencyEmail ? `<div class="footer-item"><span class="footer-label">Email:</span>${template.agencyEmail}</div>` : ""}
         </div>
-        <p>Generado automáticamente el ${new Date().toLocaleDateString("es-ES")}</p>
+        <p>Generado el ${new Date().toLocaleDateString("es-ES")}</p>
       </div>
       
       <script>

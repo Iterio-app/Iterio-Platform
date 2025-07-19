@@ -64,18 +64,7 @@ export async function POST(request: Request) {
           email: normalizedEmail,
           full_name: fullName,
           role: 'user',
-          is_approved: false,
-          template_config: {
-            logo: null,
-            agencyName: 'Tu Agencia de Viajes',
-            fontFamily: 'Inter',
-            agencyEmail: 'info@tuagencia.com',
-            agencyPhone: '+1 234 567 8900',
-            primaryColor: '#2563eb',
-            validityText: 'Esta cotización es válida por 15 días desde la fecha de emisión.',
-            agencyAddress: 'Dirección de la agencia',
-            secondaryColor: '#64748b'
-          }
+          is_approved: false
         }
       ])
       .select()

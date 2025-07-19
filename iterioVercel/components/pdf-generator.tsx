@@ -8,7 +8,7 @@ import html2canvas from "html2canvas"
 interface PdfGeneratorProps {
   data: any
   template: any
-  onComplete: (success: boolean, error?: string) => void
+  onComplete?: (success: boolean, error?: string) => void
 }
 
 export default function PdfGenerator({ data, template, onComplete }: PdfGeneratorProps) {
@@ -154,10 +154,10 @@ export default function PdfGenerator({ data, template, onComplete }: PdfGenerato
       const fileName = `cotizacion-${data.destino?.pais || "viaje"}-${new Date().toISOString().split("T")[0]}.pdf`
       pdf.save(fileName)
 
-      onComplete(true)
+      if (onComplete) onComplete(true)
     } catch (error) {
       console.error("Error generating PDF:", error)
-      onComplete(false, "Error al generar el PDF")
+      if (onComplete) onComplete(false, "Error al generar el PDF")
     }
   }
 
