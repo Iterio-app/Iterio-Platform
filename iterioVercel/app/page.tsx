@@ -1,6 +1,7 @@
 "use client"
+export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { Download, Eye, FileSpreadsheet, Save, EyeOff, Plus, CheckCircle, AlertCircle, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -1167,7 +1168,8 @@ export default function TravelQuoteGenerator() {
   const nombreUsuario = user?.user_metadata?.full_name?.trim() ? user.user_metadata.full_name : (user?.email?.split("@")?.[0] || "Usuario");
 
   return (
-    <div className="min-h-screen p-4">
+    <Suspense fallback={<div>Cargando...</div>}>
+      <div className="min-h-screen p-4">
               {user && (
           <UserMenu 
             user={user} 
@@ -1587,5 +1589,6 @@ export default function TravelQuoteGenerator() {
 
       </div>
     </div>
+    </Suspense>
   )
 }

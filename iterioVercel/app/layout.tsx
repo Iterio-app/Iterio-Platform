@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
