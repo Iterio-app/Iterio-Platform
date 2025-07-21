@@ -461,6 +461,24 @@ export default function TravelQuoteGenerator() {
   }
 
   const loadQuote = (quote: Quote) => {
+    // Detectar tipo de cotización
+    let detectedFormMode: 'flight' | 'flight_hotel' | 'full' = 'full';
+    const hasFlights = quote.flights_data && quote.flights_data.length > 0;
+    const hasAccommodations = quote.accommodations_data && quote.accommodations_data.length > 0;
+    const hasTransfers = quote.transfers_data && quote.transfers_data.length > 0;
+    const hasServices = quote.services_data && quote.services_data.length > 0;
+
+    if (hasFlights && !hasAccommodations && !hasTransfers && !hasServices) {
+      detectedFormMode = 'flight';
+    } else if (hasFlights && hasAccommodations && !hasTransfers && !hasServices) {
+      detectedFormMode = 'flight_hotel';
+    } else if (hasFlights && (hasAccommodations || hasTransfers || hasServices)) {
+      detectedFormMode = 'full';
+    } else {
+      detectedFormMode = 'full'; // O ajusta según tu lógica
+    }
+    setFormMode(detectedFormMode);
+
     // Cargar datos de la cotización
     setDestinationData({
       pais: quote.destination?.split(", ")[0] || "",
