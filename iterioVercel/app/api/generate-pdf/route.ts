@@ -784,6 +784,13 @@ body {
       `
           : ""
       }
+      ${index === data.vuelos.length - 1 && data.totales?.mostrar_nota_tarifas ? `
+      <div style="background: #e0e7ff; border: 1px solid #2563eb; border-radius: 6px; padding: 10px 16px; margin: 10px auto 0 auto; max-width: 400px; text-align: center;">
+        <div style="color: #1e40af; font-size: 14px;">
+          <strong>Nota:</strong> Las tarifas de los vuelos son por persona.
+        </div>
+      </div>
+      ` : ""}
     </div>
   `,
     )
@@ -846,7 +853,7 @@ body {
                         <span>${getRegimenLabel(habitacion.regimen)}</span>
                       </div>
                       ${hotel.mostrarPrecio ? `<div>
-                        <strong>Precio por noche:</strong>
+                        <strong>Precio total:</strong>
                         <span style="color: ${template.primaryColor}; font-weight: bold;">${formatCurrency(Number.parseFloat(habitacion.precio) || 0, hotel.useCustomCurrency && hotel.currency ? hotel.currency : data.totales?.currency || "USD")}</span>
                       </div>` : ""}
                     </div>
@@ -859,7 +866,7 @@ body {
                 : ""
             }
             
-            ${hotel.mostrarPrecio && hotel.precioTotal !== undefined ? `<div class="price">Precio total por ${hotel.cantidadHabitaciones} habitaci${hotel.cantidadHabitaciones > 1 ? "ones" : "ón"} por ${hotel.cantidadNoches} noche${hotel.cantidadNoches > 1 ? "s" : ""}: ${formatCurrency(Number(hotel.precioTotal) === 0 ? 0 : hotel.precioTotal, hotel.useCustomCurrency && hotel.currency ? hotel.currency : data.totales?.currency || "USD", Number(hotel.precioTotal) === 0)}</div>` : ""}
+            ${hotel.mostrarPrecio && hotel.precioTotal !== undefined ? `<div class="price">Precio total de ${hotel.cantidadHabitaciones} habitaci${hotel.cantidadHabitaciones > 1 ? "ones" : "ón"} por ${hotel.cantidadNoches} noche${hotel.cantidadNoches > 1 ? "s" : ""}: ${formatCurrency(Number(hotel.precioTotal) === 0 ? 0 : hotel.precioTotal, hotel.useCustomCurrency && hotel.currency ? hotel.currency : data.totales?.currency || "USD", Number(hotel.precioTotal) === 0)}</div>` : ""}
             ${
               hotel.textoLibre
                 ? `
@@ -942,7 +949,7 @@ body {
       }
       
       ${
-        data.totalesPorMoneda && Object.keys(data.totalesPorMoneda).filter(mon => data.totalesPorMoneda[mon] > 0).length > 1
+        data.totales?.mostrar_total && data.totalesPorMoneda && Object.keys(data.totalesPorMoneda).filter(mon => data.totalesPorMoneda[mon] > 0).length > 1
           ? `
     <div class="totals total-section">
       <h2 class="section-title">TOTAL DE LA COTIZACIÓN</h2>
@@ -955,12 +962,14 @@ body {
           )
           .join("")}
       </div>
+      ${data.totales?.mostrar_nota_precio_total ? `
       <div style="background: #e0e7ff; color: #1e40af; border-radius: 6px; padding: 10px 16px; margin: 10px auto 0 auto; max-width: 500px; font-size: 14px; border: 1px solid #2563eb; text-align: center;">
         <strong>Nota:</strong> El precio total no incluye los vuelos. Si la tarifa no está discriminada en la cotización, consúltela con su agente.
       </div>
+      ` : ""}
     </div>
     `
-          : data.totalesPorMoneda && Object.keys(data.totalesPorMoneda).filter(mon => data.totalesPorMoneda[mon] > 0).length === 1
+          : data.totales?.mostrar_total && data.totalesPorMoneda && Object.keys(data.totalesPorMoneda).filter(mon => data.totalesPorMoneda[mon] > 0).length === 1
             ? `
     <div class="totals total-section">
       <h2 class="section-title">TOTAL DE LA COTIZACIÓN</h2>
@@ -972,9 +981,11 @@ body {
           })()}
         </div>
       </div>
+      ${data.totales?.mostrar_nota_precio_total ? `
       <div style="background: #e0e7ff; color: #1e40af; border-radius: 6px; padding: 10px 16px; margin: 10px auto 0 auto; max-width: 500px; font-size: 14px; border: 1px solid #2563eb; text-align: center;">
         <strong>Nota:</strong> El precio total no incluye los vuelos. Si la tarifa no está discriminada en la cotización, consúltela con su agente.
       </div>
+      ` : ""}
     </div>
     `
             : ""

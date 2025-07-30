@@ -384,7 +384,7 @@ export const SummaryContent: React.FC<FormDataProps> = ({ formData }) => {
                               )}
                               {aloj.mostrarPrecio && hab.precio && (
                                 <div className="text-xs text-gray-500">
-                                  <span className="font-medium">• Precio por noche:</span> {getCurrencySymbol(aloj.useCustomCurrency ? aloj.currency : formData.selectedCurrency)} {Number(hab.precio).toFixed(2)}
+                                  <span className="font-medium">• Precio total:</span> {getCurrencySymbol(aloj.useCustomCurrency ? aloj.currency : formData.selectedCurrency)} {Number(hab.precio).toFixed(2)}
                                 </div>
                               )}
                             </div>
@@ -393,9 +393,9 @@ export const SummaryContent: React.FC<FormDataProps> = ({ formData }) => {
                       </div>
                     </div>
                   )}
-                  {aloj.mostrarPrecio && aloj.precioTotal !== undefined && aloj.cantidadNoches && (
+                  {aloj.mostrarPrecio && aloj.precioTotal !== undefined && (
                     <div className="text-sm text-gray-700 font-semibold text-blue-800">
-                      <span className="font-medium">Precio total por {aloj.cantidadNoches} noche{aloj.cantidadNoches > 1 ? "s" : ""}:</span> {getCurrencySymbol(aloj.useCustomCurrency ? aloj.currency : formData.selectedCurrency)} {Number(aloj.precioTotal).toFixed(2)}
+                      <span className="font-medium">Precio total:</span> {getCurrencySymbol(aloj.useCustomCurrency ? aloj.currency : formData.selectedCurrency)} {Number(aloj.precioTotal).toFixed(2)}
                     </div>
                   )}
                   {aloj.textoLibre && (

@@ -41,6 +41,8 @@ export interface FormDataForSidebar {
     observaciones: string;
     mostrarTotal: boolean;
     mostrarCantidadPasajeros?: boolean;
+    mostrarNotaTarifas?: boolean;
+    mostrarNotaPrecioTotal?: boolean;
     currency?: string;
   };
   

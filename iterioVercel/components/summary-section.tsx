@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Calculator, FileSpreadsheet } from "lucide-react"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { Alert } from "@/components/ui/alert"
@@ -21,6 +20,8 @@ interface SummaryData {
   total: number
   observaciones: string
   mostrarTotal: boolean
+  mostrarNotaTarifas?: boolean
+  mostrarNotaPrecioTotal?: boolean
   currency?: string
 }
 
@@ -102,6 +103,7 @@ interface SummarySectionProps {
   destinationData?: { ciudad?: string }
   isSidebarVisible?: boolean
   formMode?: 'flight' | 'flight_hotel' | 'full'
+  onSummaryDataChange?: (data: Partial<SummaryData>) => void
 }
 
 export default function SummarySection({
@@ -116,6 +118,7 @@ export default function SummarySection({
   destinationData,
   isSidebarVisible = true,
   formMode = 'full',
+  onSummaryDataChange,
 }: SummarySectionProps) {
   const formatCurrencyBy = (amount: number | string, currency: string) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -429,6 +432,67 @@ export default function SummarySection({
                 ))}
               </ul>
             </div>
+            
+            {/* Checkbox para mostrar/ocultar total en PDF */}
+            <div className="mt-4 p-3 bg-white rounded border">
+              <div className="flex items-center space-x-2">
+                <input
+                  id="mostrarTotalPdf"
+                  type="checkbox"
+                  checked={summaryData.mostrarTotal}
+                  onChange={(e) => {
+                    if (onSummaryDataChange) {
+                      onSummaryDataChange({ mostrarTotal: e.target.checked });
+                    }
+                  }}
+                  className="accent-blue-600 h-4 w-4"
+                />
+                <Label htmlFor="mostrarTotalPdf" className="text-sm font-medium">
+                  Mostrar precio total en el PDF
+                </Label>
+              </div>
+            </div>
+            
+            {/* Checkbox para mostrar/ocultar nota de tarifas de vuelos */}
+            <div className="mt-2 p-3 bg-white rounded border">
+              <div className="flex items-center space-x-2">
+                <input
+                  id="mostrarNotaTarifas"
+                  type="checkbox"
+                  checked={summaryData.mostrarNotaTarifas || false}
+                  onChange={(e) => {
+                    if (onSummaryDataChange) {
+                      onSummaryDataChange({ mostrarNotaTarifas: e.target.checked });
+                    }
+                  }}
+                  className="accent-blue-600 h-4 w-4"
+                />
+                <Label htmlFor="mostrarNotaTarifas" className="text-sm font-medium">
+                  Mostrar nota de tarifas de vuelos en el PDF
+                </Label>
+              </div>
+            </div>
+            
+            {/* Checkbox para mostrar/ocultar nota del precio total */}
+            <div className="mt-2 p-3 bg-white rounded border">
+              <div className="flex items-center space-x-2">
+                <input
+                  id="mostrarNotaPrecioTotal"
+                  type="checkbox"
+                  checked={summaryData.mostrarNotaPrecioTotal || false}
+                  onChange={(e) => {
+                    if (onSummaryDataChange) {
+                      onSummaryDataChange({ mostrarNotaPrecioTotal: e.target.checked });
+                    }
+                  }}
+                  className="accent-blue-600 h-4 w-4"
+                />
+                <Label htmlFor="mostrarNotaPrecioTotal" className="text-sm font-medium">
+                  Mostrar nota del precio total en el PDF
+                </Label>
+              </div>
+            </div>
+            
             <div className="mt-2">
               <Alert variant="default" className="text-xs text-gray-600 text-center italic">
                 El total general <b>no incluye los vuelos</b>. Consulta la tabla de arriba para ver los precios de vuelos por persona y tipo de equipaje.

@@ -97,16 +97,16 @@ export default function AccommodationSection({ accommodations, onChange, selecte
               (sum, room) => sum + (Number.parseFloat(room.precio) || 0),
               0,
             )
-            updated.precioTotal = precioBase * (updated.cantidadNoches || 1)
+            updated.precioTotal = precioBase
           }
 
-          // Recalcular precio total cuando cambia la cantidad de noches
+          // El precio total ya no depende de la cantidad de noches
           if (field === "cantidadNoches") {
             const precioBase = updated.habitaciones.reduce(
               (sum, room) => sum + (Number.parseFloat(room.precio) || 0),
               0,
             )
-            updated.precioTotal = precioBase * (value as number)
+            updated.precioTotal = precioBase
           }
 
           // Calcular noches automáticamente cuando cambian las fechas
@@ -158,7 +158,7 @@ export default function AccommodationSection({ accommodations, onChange, selecte
     }
 
     const precioBase = newHabitaciones.reduce((sum, room) => sum + (Number.parseFloat(room.precio) || 0), 0)
-    const precioTotal = precioBase * (accommodation.cantidadNoches || 1)
+    const precioTotal = precioBase
 
     // Actualizar todo en una sola operación
     onChange(
@@ -188,7 +188,7 @@ export default function AccommodationSection({ accommodations, onChange, selecte
           )
 
           const precioBase = updatedHabitaciones.reduce((sum, room) => sum + (Number.parseFloat(room.precio) || 0), 0)
-          const precioTotal = precioBase * (acc.cantidadNoches || 1)
+          const precioTotal = precioBase
 
           return {
             ...acc,
@@ -378,7 +378,7 @@ export default function AccommodationSection({ accommodations, onChange, selecte
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`precio-${accommodation.id}-${habitacion.id}`}>Precio por noche</Label>
+                        <Label htmlFor={`precio-${accommodation.id}-${habitacion.id}`}>Precio total</Label>
                         <Input
                           id={`precio-${accommodation.id}-${habitacion.id}`}
                           value={habitacion.precio}
@@ -416,7 +416,7 @@ export default function AccommodationSection({ accommodations, onChange, selecte
                   </div>
                   <div className="text-right">
                     <Label className="text-sm font-medium text-blue-700">
-                      Precio total por {accommodation.cantidadHabitaciones} habitaci{accommodation.cantidadHabitaciones > 1 ? "ones" : "ón"} por {accommodation.cantidadNoches} noche{accommodation.cantidadNoches > 1 ? "s" : ""}
+                      Precio total por {accommodation.cantidadHabitaciones} habitaci{accommodation.cantidadHabitaciones > 1 ? "ones" : "ón"}
                     </Label>
                     <div className="text-lg font-bold text-blue-800">
                       {(accommodation.currency || selectedCurrency)} {accommodation.precioTotal.toFixed(2)}

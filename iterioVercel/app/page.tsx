@@ -1424,6 +1424,10 @@ export default function TravelQuoteGenerator() {
                         destinationData={destinationData}
                         isSidebarVisible={featuresEnabled.sidebar && showUnifiedSidebar}
                         formMode={formMode}
+                        onSummaryDataChange={(data) => {
+                          setSummaryData(prev => ({ ...prev, ...data }));
+                          markAsChanged();
+                        }}
                       />
                     )}
                     {/* Navegación de subpasos */}
@@ -1497,7 +1501,7 @@ export default function TravelQuoteGenerator() {
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                           <p className="text-green-800 font-medium">✅ Cotización generada exitosamente</p>
                           <p className="text-green-600 text-sm mt-1">
-                            Vista previa disponible abajo. Usa el botón Imprimir para guardar la cotización en PDF.
+                            Vista previa disponible abajo. Usa el botón de descarga para guardar la cotización en PDF.
                           </p>
                         </div>
                         <div className="flex gap-4">

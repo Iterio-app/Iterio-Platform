@@ -409,10 +409,11 @@ function generatePdfHtml(data: any, template: any): string {
           ? `
         <div class="section">
           <h2 class="section-title">VUELOS</h2>
-          ${data.vuelos
-            .map(
-              (vuelo: any, index: number) => `
-            <div class="item-card">
+                      ${data.vuelos
+              .map(
+                (vuelo: any, index: number) => `
+              <div class="item-card">
+
               <h3 style="color: ${template.primaryColor}; margin-bottom: 15px;">${vuelo.nombre || `Compañía Aérea ${index + 1}`}</h3>
               
               ${
@@ -537,12 +538,19 @@ function generatePdfHtml(data: any, template: any): string {
               `
                   : ""
               }
+              ${index === data.vuelos.length - 1 && data.totales?.mostrar_nota_tarifas ? `
+              <div style="background: #e0e7ff; border: 1px solid #2563eb; border-radius: 6px; padding: 10px 16px; margin: 10px auto 0 auto; max-width: 400px; text-align: center;">
+                <div style="color: #1e40af; font-size: 14px;">
+                  <strong>Nota:</strong> Las tarifas de los vuelos son por persona.
+                </div>
+              </div>
+              ` : ""}
             </div>
           `,
             )
             .join("")}
-        </div>
-      `
+          </div>
+        `
           : ""
       }
       
@@ -597,7 +605,7 @@ function generatePdfHtml(data: any, template: any): string {
                   : ""
               }
               
-              ${hotel.mostrarPrecio && hotel.precioTotal !== undefined ? `<div class="price">Precio total por ${hotel.cantidadHabitaciones} habitaci${hotel.cantidadHabitaciones > 1 ? "ones" : "ón"} por ${hotel.cantidadNoches} noche${hotel.cantidadNoches > 1 ? "s" : ""}: ${formatCurrency(Number(hotel.precioTotal) === 0 ? 0 : hotel.precioTotal, hotel.useCustomCurrency && hotel.currency ? hotel.currency : data.totales?.currency || "USD", Number(hotel.precioTotal) === 0)}</div>` : ""}
+              ${hotel.mostrarPrecio && hotel.precioTotal !== undefined ? `<div class="price">Precio total de ${hotel.cantidadHabitaciones} habitaci${hotel.cantidadHabitaciones > 1 ? "ones" : "ón"} por ${hotel.cantidadNoches} noche${hotel.cantidadNoches > 1 ? "s" : ""}: ${formatCurrency(Number(hotel.precioTotal) === 0 ? 0 : hotel.precioTotal, hotel.useCustomCurrency && hotel.currency ? hotel.currency : data.totales?.currency || "USD", Number(hotel.precioTotal) === 0)}</div>` : ""}
               ${
                 hotel.textoLibre
                   ? `
@@ -679,6 +687,7 @@ function generatePdfHtml(data: any, template: any): string {
           : ""
       }
       
+      ${data.totales?.mostrar_total ? `
       <div class="totals">
         <h2 class="section-title">TOTAL DE LA COTIZACIÓN</h2>
         <div style="text-align: center; padding: 15px;">
@@ -686,7 +695,13 @@ function generatePdfHtml(data: any, template: any): string {
             ${formatCurrency(data.totales?.total || 0, data.totales?.currency || "USD")}
           </div>
         </div>
+        ${data.totales?.mostrar_nota_precio_total ? `
+        <div style="background: #e0e7ff; color: #1e40af; border-radius: 6px; padding: 10px 16px; margin: 10px auto 0 auto; max-width: 500px; font-size: 14px; border: 1px solid #2563eb; text-align: center;">
+          <strong>Nota:</strong> El precio total no incluye los vuelos. Si la tarifa no está discriminada en la cotización, consúltela con su agente.
+        </div>
+        ` : ""}
       </div>
+      ` : ""}
       
       ${
         data.observaciones
