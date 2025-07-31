@@ -20,8 +20,8 @@ interface SummaryData {
   total: number
   observaciones: string
   mostrarTotal: boolean
-  mostrarNotaTarifas?: boolean
-  mostrarNotaPrecioTotal?: boolean
+  mostrarNotaTarifas: boolean
+  mostrarNotaPrecioTotal: boolean
   currency?: string
 }
 
@@ -101,6 +101,7 @@ interface SummarySectionProps {
   onGeneratePdf: () => void
   isGenerating: boolean
   destinationData?: { ciudad?: string }
+  clientData?: { cantidadAdultos: number; cantidadMenores: number; cantidadInfantes: number }
   isSidebarVisible?: boolean
   formMode?: 'flight' | 'flight_hotel' | 'full'
   onSummaryDataChange?: (data: Partial<SummaryData>) => void
@@ -116,6 +117,7 @@ export default function SummarySection({
   onGeneratePdf,
   isGenerating,
   destinationData,
+  clientData,
   isSidebarVisible = true,
   formMode = 'full',
   onSummaryDataChange,
@@ -250,24 +252,24 @@ export default function SummarySection({
                       <tbody>
                         {hasAdulto && (
                           <tr className="text-center">
-                            <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-medium`}>Adulto</td>
-                            {showMochila && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioAdultoMochila ? formatCurrencyBy(flight.precioAdultoMochila, monedaVuelo) : '-'}</td>}
-                            {showMochilaCarryOn && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioAdultoMochilaCarryOn ? formatCurrencyBy(flight.precioAdultoMochilaCarryOn, monedaVuelo) : '-'}</td>}
-                            {showMochilaCarryOnValija && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioAdultoMochilaCarryOnValija ? formatCurrencyBy(flight.precioAdultoMochilaCarryOnValija, monedaVuelo) : '-'}</td>}
+                            <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-medium`}>Adulto (x{clientData?.cantidadAdultos || 1})</td>
+                            {showMochila && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioAdultoMochila ? formatCurrencyBy(parseFloat(flight.precioAdultoMochila || '0') * (clientData?.cantidadAdultos || 1), monedaVuelo) : '-'}</td>}
+                            {showMochilaCarryOn && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioAdultoMochilaCarryOn ? formatCurrencyBy(parseFloat(flight.precioAdultoMochilaCarryOn || '0') * (clientData?.cantidadAdultos || 1), monedaVuelo) : '-'}</td>}
+                            {showMochilaCarryOnValija && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioAdultoMochilaCarryOnValija ? formatCurrencyBy(parseFloat(flight.precioAdultoMochilaCarryOnValija || '0') * (clientData?.cantidadAdultos || 1), monedaVuelo) : '-'}</td>}
                           </tr>
                         )}
                         {hasMenor && (
                           <tr className="text-center">
-                            <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-medium`}>Menor</td>
-                            {showMochila && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioMenorMochila ? formatCurrencyBy(flight.precioMenorMochila, monedaVuelo) : '-'}</td>}
-                            {showMochilaCarryOn && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioMenorMochilaCarryOn ? formatCurrencyBy(flight.precioMenorMochilaCarryOn, monedaVuelo) : '-'}</td>}
-                            {showMochilaCarryOnValija && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioMenorMochilaCarryOnValija ? formatCurrencyBy(flight.precioMenorMochilaCarryOnValija, monedaVuelo) : '-'}</td>}
+                            <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-medium`}>Menor (x{clientData?.cantidadMenores || 1})</td>
+                            {showMochila && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioMenorMochila ? formatCurrencyBy(parseFloat(flight.precioMenorMochila || '0') * (clientData?.cantidadMenores || 1), monedaVuelo) : '-'}</td>}
+                            {showMochilaCarryOn && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioMenorMochilaCarryOn ? formatCurrencyBy(parseFloat(flight.precioMenorMochilaCarryOn || '0') * (clientData?.cantidadMenores || 1), monedaVuelo) : '-'}</td>}
+                            {showMochilaCarryOnValija && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioMenorMochilaCarryOnValija ? formatCurrencyBy(parseFloat(flight.precioMenorMochilaCarryOnValija || '0') * (clientData?.cantidadMenores || 1), monedaVuelo) : '-'}</td>}
                           </tr>
                         )}
                         {hasInfante && (
                           <tr className="text-center">
-                            <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-medium`}>Infante</td>
-                            <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`} colSpan={((showMochila ? 1 : 0) + (showMochilaCarryOn ? 1 : 0) + (showMochilaCarryOnValija ? 1 : 0))}>{formatCurrencyBy(flight.precioInfante, monedaVuelo)}</td>
+                            <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-medium`}>Infante (x{clientData?.cantidadInfantes || 1})</td>
+                            <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`} colSpan={((showMochila ? 1 : 0) + (showMochilaCarryOn ? 1 : 0) + (showMochilaCarryOnValija ? 1 : 0))}>{formatCurrencyBy(parseFloat(flight.precioInfante || '0') * (clientData?.cantidadInfantes || 1), monedaVuelo)}</td>
                           </tr>
                         )}
                       </tbody>
@@ -276,9 +278,9 @@ export default function SummarySection({
                           <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} text-center font-semibold`}>
                             {`Subtotal vuelo${(flight.destino || destinationData?.ciudad) ? ` a ${flight.destino || destinationData?.ciudad}` : ` ${idx + 1}`}`}
                           </td>
-                          {showMochila && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-semibold`}>{formatCurrencyBy((flight.mostrarPrecioAdultoMochila ? parseFloat(flight.precioAdultoMochila || '0') : 0) + (flight.mostrarPrecioMenorMochila ? parseFloat(flight.precioMenorMochila || '0') : 0), monedaVuelo)}</td>}
-                          {showMochilaCarryOn && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-semibold`}>{formatCurrencyBy((flight.mostrarPrecioAdultoMochilaCarryOn ? parseFloat(flight.precioAdultoMochilaCarryOn || '0') : 0) + (flight.mostrarPrecioMenorMochilaCarryOn ? parseFloat(flight.precioMenorMochilaCarryOn || '0') : 0), monedaVuelo)}</td>}
-                          {showMochilaCarryOnValija && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-semibold`}>{formatCurrencyBy((flight.mostrarPrecioAdultoMochilaCarryOnValija ? parseFloat(flight.precioAdultoMochilaCarryOnValija || '0') : 0) + (flight.mostrarPrecioMenorMochilaCarryOnValija ? parseFloat(flight.precioMenorMochilaCarryOnValija || '0') : 0), monedaVuelo)}</td>}
+                          {showMochila && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-semibold`}>{formatCurrencyBy((flight.mostrarPrecioAdultoMochila ? parseFloat(flight.precioAdultoMochila || '0') * (clientData?.cantidadAdultos || 1) : 0) + (flight.mostrarPrecioMenorMochila ? parseFloat(flight.precioMenorMochila || '0') * (clientData?.cantidadMenores || 1) : 0) + (hasInfante ? parseFloat(flight.precioInfante || '0') * (clientData?.cantidadInfantes || 1) : 0), monedaVuelo)}</td>}
+                          {showMochilaCarryOn && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-semibold`}>{formatCurrencyBy((flight.mostrarPrecioAdultoMochilaCarryOn ? parseFloat(flight.precioAdultoMochilaCarryOn || '0') * (clientData?.cantidadAdultos || 1) : 0) + (flight.mostrarPrecioMenorMochilaCarryOn ? parseFloat(flight.precioMenorMochilaCarryOn || '0') * (clientData?.cantidadMenores || 1) : 0) + (hasInfante ? parseFloat(flight.precioInfante || '0') * (clientData?.cantidadInfantes || 1) : 0), monedaVuelo)}</td>}
+                          {showMochilaCarryOnValija && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-semibold`}>{formatCurrencyBy((flight.mostrarPrecioAdultoMochilaCarryOnValija ? parseFloat(flight.precioAdultoMochilaCarryOnValija || '0') * (clientData?.cantidadAdultos || 1) : 0) + (flight.mostrarPrecioMenorMochilaCarryOnValija ? parseFloat(flight.precioMenorMochilaCarryOnValija || '0') * (clientData?.cantidadMenores || 1) : 0) + (hasInfante ? parseFloat(flight.precioInfante || '0') * (clientData?.cantidadInfantes || 1) : 0), monedaVuelo)}</td>}
                         </tr>
                       </tfoot>
                     </table>
@@ -459,7 +461,7 @@ export default function SummarySection({
                 <input
                   id="mostrarNotaTarifas"
                   type="checkbox"
-                  checked={summaryData.mostrarNotaTarifas || false}
+                  checked={summaryData.mostrarNotaTarifas}
                   onChange={(e) => {
                     if (onSummaryDataChange) {
                       onSummaryDataChange({ mostrarNotaTarifas: e.target.checked });
@@ -479,7 +481,7 @@ export default function SummarySection({
                 <input
                   id="mostrarNotaPrecioTotal"
                   type="checkbox"
-                  checked={summaryData.mostrarNotaPrecioTotal || false}
+                  checked={summaryData.mostrarNotaPrecioTotal}
                   onChange={(e) => {
                     if (onSummaryDataChange) {
                       onSummaryDataChange({ mostrarNotaPrecioTotal: e.target.checked });

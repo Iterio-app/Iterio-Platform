@@ -255,6 +255,8 @@ export default function TravelQuoteGenerator() {
     total: 0,
     observaciones: "",
     mostrarTotal: true,
+    mostrarNotaTarifas: true,
+    mostrarNotaPrecioTotal: true,
   })
 
   // Definir los pasos del wizard (sin 'Mis Cotizaciones')
@@ -782,6 +784,8 @@ export default function TravelQuoteGenerator() {
         subtotal: summaryData.subtotal,
         total: summaryData.total,
         mostrar_total: summaryData.mostrarTotal,
+        mostrar_nota_tarifas: summaryData.mostrarNotaTarifas,
+        mostrar_nota_precio_total: summaryData.mostrarNotaPrecioTotal,
         currency: selectedCurrency,
       },
       observaciones: summaryData.observaciones,
@@ -1422,6 +1426,7 @@ export default function TravelQuoteGenerator() {
                         onGeneratePdf={generatePdf}
                         isGenerating={isProcessing}
                         destinationData={destinationData}
+                        clientData={clientData}
                         isSidebarVisible={featuresEnabled.sidebar && showUnifiedSidebar}
                         formMode={formMode}
                         onSummaryDataChange={(data) => {
