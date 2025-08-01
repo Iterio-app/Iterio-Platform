@@ -2,10 +2,10 @@
 
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Plane, Hotel, Map } from "lucide-react";
+import { Plane, Hotel, Map, Ship } from "lucide-react";
 import { useState } from "react";
 
-const MODES: { key: 'flight' | 'flight_hotel' | 'full', icon: JSX.Element, title: string, desc: string }[] = [
+const MODES: { key: 'flight' | 'flight_hotel' | 'full' | 'cruise', icon: JSX.Element, title: string, desc: string }[] = [
   {
     key: "flight",
     icon: <Plane className="h-6 w-6 text-blue-600" />,
@@ -23,10 +23,16 @@ const MODES: { key: 'flight' | 'flight_hotel' | 'full', icon: JSX.Element, title
     icon: <Map className="h-6 w-6 text-green-600" />,
     title: "Itinerario completo",
     desc: "Incluye vuelos, alojamiento, traslados y servicios."
+  },
+  {
+    key: "cruise",
+    icon: <Ship className="h-6 w-6 text-cyan-600" />,
+    title: "Crucero",
+    desc: "Cotiza paquetes de cruceros para tu cliente."
   }
 ];
 
-export default function FloatingNewQuoteButton({ onSelect }: { onSelect: (mode: 'flight' | 'flight_hotel' | 'full') => void }) {
+export default function FloatingNewQuoteButton({ onSelect }: { onSelect: (mode: 'flight' | 'flight_hotel' | 'full' | 'cruise') => void }) {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -48,7 +54,7 @@ export default function FloatingNewQuoteButton({ onSelect }: { onSelect: (mode: 
             <button
               key={mode.key}
               className="flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-blue-50 transition group focus:outline-none"
-              onClick={() => { setOpen(false); onSelect(mode.key as 'flight' | 'flight_hotel' | 'full'); }}
+              onClick={() => { setOpen(false); onSelect(mode.key as 'flight' | 'flight_hotel' | 'full' | 'cruise'); }}
               type="button"
             >
               <div className="flex-shrink-0">{mode.icon}</div>

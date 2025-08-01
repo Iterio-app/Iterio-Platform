@@ -16,6 +16,7 @@ interface SummaryData {
   subtotalHoteles: number
   subtotalTraslados: number
   subtotalServicios: number
+  subtotalCruceros: number
   subtotal: number
   total: number
   observaciones: string
@@ -93,17 +94,18 @@ interface Service {
 
 interface SummarySectionProps {
   summaryData: SummaryData
-  flights: Flight[]
-  accommodations: Accommodation[]
-  transfers: Transfer[]
-  services: Service[]
+  flights: any[]
+  accommodations: any[]
+  transfers: any[]
+  services: any[]
+  cruises: any[]
   selectedCurrency: string
   onGeneratePdf: () => void
   isGenerating: boolean
   destinationData?: { ciudad?: string }
   clientData?: { cantidadAdultos: number; cantidadMenores: number; cantidadInfantes: number }
   isSidebarVisible?: boolean
-  formMode?: 'flight' | 'flight_hotel' | 'full'
+  formMode?: 'flight' | 'flight_hotel' | 'full' | 'cruise'
   onSummaryDataChange?: (data: Partial<SummaryData>) => void
 }
 
@@ -113,6 +115,7 @@ export default function SummarySection({
   accommodations,
   transfers,
   services,
+  cruises,
   selectedCurrency,
   onGeneratePdf,
   isGenerating,
@@ -174,10 +177,11 @@ export default function SummarySection({
   const accommodationTotals = groupAmountsByCurrency(accommodations, selectedCurrency, 'precioTotal');
   const transferTotals = groupAmountsByCurrency(transfers, selectedCurrency, 'precio');
   const serviceTotals = groupAmountsByCurrency(services, selectedCurrency, 'precio');
+  const cruiseTotals = groupAmountsByCurrency(cruises, selectedCurrency, 'precio');
 
   // Calcular total general agrupando todas las monedas
   const allTotals: Record<string, number> = {};
-  [accommodationTotals, transferTotals, serviceTotals].forEach(sectionTotals => {
+  [accommodationTotals, transferTotals, serviceTotals, cruiseTotals].forEach(sectionTotals => {
     Object.entries(sectionTotals).forEach(([currency, amount]) => {
       allTotals[currency] = (allTotals[currency] || 0) + amount;
     });
@@ -193,6 +197,7 @@ export default function SummarySection({
       </CardHeader>
       <CardContent className="space-y-8">
         {/* Vuelos */}
+        {formMode !== 'cruise' && (
         <section>
           <h3 className="font-semibold text-lg mb-2">Vuelos</h3>
           {flights.length === 0 ? (
@@ -290,9 +295,10 @@ export default function SummarySection({
             </div>
           )}
         </section>
+        )}
 
         {/* Alojamiento */}
-        {formMode !== 'flight' && (
+        {(formMode === 'full' || formMode === 'flight_hotel') && (
         <section>
           <h3 className="font-semibold text-lg mb-2">Alojamiento</h3>
           {accommodations.length === 0 ? (
@@ -307,7 +313,7 @@ export default function SummarySection({
                     <div className={`text-gray-600 mb-1 ${!isSidebarVisible ? 'text-sm ' : 'text-xs'}`}>Check-in: {acc.checkin} | Check-out: {acc.checkout} | Cantidad noches: {acc.cantidadNoches || 1}</div>
                     <div className={`font-semibold ${!isSidebarVisible ? 'text-base ' : 'text-sm'}`}>Habitaciones:</div>
                     <ul className={`ml-4 ${!isSidebarVisible ? 'text-base ' : 'text-sm'}`}>
-                      {acc.habitaciones.map((room) => (
+                      {acc.habitaciones.map((room: any) => (
                         <li key={room.id}>
                           <span className="font-medium">{room.tipoHabitacion}</span> - {formatRegimen(room.regimen)} - {formatCurrencyBy(room.precio, monedaAloj)}
                         </li>
@@ -371,6 +377,31 @@ export default function SummarySection({
         </section>
         )}
 
+        {/* Cruceros */}
+        {(formMode === 'cruise' || formMode === 'full') && (
+        <section>
+          <h3 className="font-semibold text-lg mb-2">Cruceros</h3>
+          {cruises.length === 0 ? (
+            <div className="text-gray-500 italic">No hay cruceros cargados.</div>
+          ) : (
+            <div className="space-y-2">
+              {cruises.map((cruise, idx) => {
+                const monedaCrucero = cruise.useCustomCurrency && cruise.currency ? cruise.currency : selectedCurrency;
+                return (
+                  <div key={cruise.id} className={`border rounded p-3 bg-gray-50 ${!isSidebarVisible ? 'text-lg ' : 'text-base'}`}>
+                    <div className="font-semibold">{cruise.empresa} - {cruise.nombreBarco}</div>
+                    <div className={`text-gray-600 mb-1 ${!isSidebarVisible ? 'text-sm ' : 'text-xs'}`}>Destino: {cruise.destino}</div>
+                    <div className={`text-gray-600 mb-1 ${!isSidebarVisible ? 'text-sm ' : 'text-xs'}`}>Partida: {cruise.fechaPartida} | Regreso: {cruise.fechaRegreso}</div>
+                    <div className={`text-gray-600 mb-1 ${!isSidebarVisible ? 'text-sm ' : 'text-xs'}`}>Cabina: {cruise.tipoCabina} | Días: {cruise.cantidadDias}</div>
+                    <div className="text-right font-semibold mt-1">Precio: {formatCurrencyBy(cruise.precio, monedaCrucero)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+        )}
+
         {/* Totales */}
         <section>
           <h3 className="font-bold text-lg mb-2">Resumen de Totales</h3>
@@ -417,6 +448,22 @@ export default function SummarySection({
                       <li key={service.id} className="flex justify-between">
                         <span>{service.nombre}</span>
                         <span>{formatCurrencyBy(service.precio, moneda)}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+            {(formMode === 'cruise' || formMode === 'full') && cruises.length > 0 && (
+              <div className="mb-1">
+                <span className="font-medium">Subtotal cruceros:</span>
+                <ul>
+                  {cruises.map(cruise => {
+                    const moneda = cruise.useCustomCurrency && cruise.currency ? cruise.currency : selectedCurrency;
+                    return (
+                      <li key={cruise.id} className="flex justify-between">
+                        <span>{cruise.nombreBarco}</span>
+                        <span>{formatCurrencyBy(cruise.precio, moneda)}</span>
                       </li>
                     );
                   })}

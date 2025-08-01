@@ -1,5 +1,5 @@
 import React from "react";
-import { Calculator, Plane, Building, Car, Ticket, Users, MapPin } from "lucide-react";
+import { Calculator, Plane, Building, Car, Ticket, Users, MapPin, Ship } from "lucide-react";
 import { groupAmountsByCurrency } from "@/lib/utils";
 import { FormDataProps } from "@/lib/types";
 
@@ -119,21 +119,24 @@ export const SummaryContent: React.FC<FormDataProps> = ({ formData }) => {
   const hasAlojamiento = formData.accommodations && formData.accommodations.length > 0;
   // Traslados
   const hasTraslados = formData.transfers && formData.transfers.length > 0;
+  // Cruceros
+  const hasCruceros = formData.cruises && formData.cruises.length > 0;
 
   // Calcular totales
   const accommodationTotals = groupAmountsByCurrency(formData.accommodations || [], formData.selectedCurrency || 'USD', 'precioTotal');
   const transferTotals = groupAmountsByCurrency(formData.transfers || [], formData.selectedCurrency || 'USD', 'precio');
   const serviceTotals = groupAmountsByCurrency(formData.services || [], formData.selectedCurrency || 'USD', 'precio');
+  const cruiseTotals = groupAmountsByCurrency(formData.cruises || [], formData.selectedCurrency || 'USD', 'precio');
   
   const allTotals: Record<string, number> = {};
-  [accommodationTotals, transferTotals, serviceTotals].forEach(sectionTotals => {
+  [accommodationTotals, transferTotals, serviceTotals, cruiseTotals].forEach(sectionTotals => {
     Object.entries(sectionTotals).forEach(([currency, amount]) => {
       allTotals[currency] = (allTotals[currency] || 0) + amount;
     });
   });
 
   // Totales - mostrar siempre que haya algún dato, incluso si es 0
-  const hasTotales = (formData.accommodations?.length || 0) > 0 || (formData.transfers?.length || 0) > 0 || (formData.services?.length || 0) > 0;
+  const hasTotales = (formData.accommodations?.length || 0) > 0 || (formData.transfers?.length || 0) > 0 || (formData.services?.length || 0) > 0 || (formData.cruises?.length || 0) > 0;
 
   return (
     <div className="space-y-4">
@@ -510,6 +513,76 @@ export const SummaryContent: React.FC<FormDataProps> = ({ formData }) => {
                     {serv.textoLibre && (
                       <div className="text-sm text-gray-700">
                         <span className="font-medium">Comentarios adicionales:</span> <span className="italic text-gray-600 font-normal">{serv.textoLibre}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {hasCruceros && (
+        <div className="border-l-4 border-cyan-500 pl-3">
+          <h4 className="font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <Ship className="h-4 w-4 text-cyan-600" />
+            Cruceros
+            <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-1 rounded-full">
+              {formData.cruises?.length || 0}
+            </span>
+          </h4>
+          {formData.cruises?.length === 1 && formData.cruises[0]?.empresa && formData.cruises[0]?.nombreBarco && (
+            <div className="text-sm font-medium text-cyan-800 mb-2">
+              {formData.cruises[0].empresa} - {formData.cruises[0].nombreBarco}
+            </div>
+          )}
+          <div className="space-y-4">
+            {formData.cruises?.map((cruise: any, idx: number) => {
+              return (
+                <div key={idx} className="mb-3 pb-3 border-b border-gray-100 last:border-b-0">
+                  {(formData.cruises?.length || 0) > 1 && (
+                    <div className="font-medium text-sm text-cyan-900 mb-2">
+                      {cruise.empresa && cruise.nombreBarco 
+                        ? `${cruise.empresa} - ${cruise.nombreBarco}`
+                        : `Crucero ${idx + 1}`
+                      }
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {cruise.destino && (
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Destino:</span> {cruise.destino}
+                      </div>
+                    )}
+                    {cruise.fechaPartida && (
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Fecha de partida:</span> {formatDate(cruise.fechaPartida)}
+                      </div>
+                    )}
+                    {cruise.fechaRegreso && (
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Fecha de regreso:</span> {formatDate(cruise.fechaRegreso)}
+                      </div>
+                    )}
+                    {cruise.tipoCabina && (
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Tipo de cabina:</span> {cruise.tipoCabina}
+                      </div>
+                    )}
+                    {cruise.cantidadDias && (
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Duración:</span> {cruise.cantidadDias} días
+                      </div>
+                    )}
+                    {cruise.mostrarPrecio && cruise.precio && (
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Precio:</span> {getCurrencySymbol(cruise.useCustomCurrency ? cruise.currency : formData.selectedCurrency)} {cruise.precio}
+                      </div>
+                    )}
+                    {cruise.textoLibre && (
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Comentarios adicionales:</span> <span className="italic text-gray-600 font-normal">{cruise.textoLibre}</span>
                       </div>
                     )}
                   </div>

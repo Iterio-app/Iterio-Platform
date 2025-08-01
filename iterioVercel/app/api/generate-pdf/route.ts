@@ -949,6 +949,43 @@ body {
       }
       
       ${
+        data.cruceros && data.cruceros.length > 0
+          ? `
+      <div class="section content-section">
+        <h2 class="section-title">CRUCEROS</h2>
+        ${data.cruceros
+          .map(
+            (crucero) => `
+          <div class="item-card">
+            <h3 style="color: ${template.primaryColor}; margin-bottom: 15px;">${crucero.empresa} - ${crucero.nombreBarco}</h3>
+            ${renderImageGallery(crucero.imagenes, `${crucero.empresa} ${crucero.nombreBarco}`)}
+            <div class="item-details">
+              <div><strong>Destino:</strong> ${crucero.destino}</div>
+              <div><strong>Fecha de partida:</strong> ${formatDate(crucero.fechaPartida)}</div>
+              <div><strong>Fecha de regreso:</strong> ${formatDate(crucero.fechaRegreso)}</div>
+              <div><strong>Tipo de cabina:</strong> ${crucero.tipoCabina}</div>
+              ${crucero.cantidadDias ? `<div><strong>Duración:</strong> ${crucero.cantidadDias} días</div>` : ""}
+            </div>
+            ${crucero.mostrarPrecio ? `<div class="price">Precio: ${formatCurrency(crucero.precio, crucero.useCustomCurrency && crucero.currency ? crucero.currency : data.totales?.currency || "USD")}</div>` : ""}
+            ${
+              crucero.textoLibre
+                ? `
+            <div class="text-libre">
+              <p>${crucero.textoLibre.replace(/\n/g, "<br>")}</p>
+            </div>
+          `
+                : ""
+            }
+          </div>
+        `,
+          )
+          .join("")}
+      </div>
+      `
+          : ""
+      }
+      
+      ${
         data.totales?.mostrar_total && data.totalesPorMoneda && Object.keys(data.totalesPorMoneda).filter(mon => data.totalesPorMoneda[mon] > 0).length > 1
           ? `
     <div class="totals total-section">

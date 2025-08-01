@@ -25,10 +25,11 @@ export interface FormDataForSidebar {
   accommodations: any[];
   transfers: any[];
   services: any[];
+  cruises: any[];
   
   // Configuración
   selectedCurrency: string;
-  formMode: 'flight' | 'flight_hotel' | 'full';
+  formMode: 'flight' | 'flight_hotel' | 'full' | 'cruise';
   
   // Datos del resumen (incluye mostrarCantidadPasajeros)
   summaryData: {
@@ -36,6 +37,7 @@ export interface FormDataForSidebar {
     subtotalHoteles: number;
     subtotalTraslados: number;
     subtotalServicios: number;
+    subtotalCruceros: number;
     subtotal: number;
     total: number;
     observaciones: string;

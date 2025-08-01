@@ -144,11 +144,15 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
               const accommodationTotals = groupAmountsByCurrency(quote.accommodations_data || [], quote.summary_data?.currency || "USD", "precioTotal");
               const transferTotals = groupAmountsByCurrency(quote.transfers_data || [], quote.summary_data?.currency || "USD", "precio");
               const serviceTotals = groupAmountsByCurrency(quote.services_data || [], quote.summary_data?.currency || "USD", "precio");
+              const cruiseTotals = groupAmountsByCurrency(quote.cruises_data || [], quote.summary_data?.currency || "USD", "precio");
               const allTotals = { ...accommodationTotals };
               for (const [currency, amount] of Object.entries(transferTotals)) {
                 allTotals[currency] = (allTotals[currency] || 0) + amount;
               }
               for (const [currency, amount] of Object.entries(serviceTotals)) {
+                allTotals[currency] = (allTotals[currency] || 0) + amount;
+              }
+              for (const [currency, amount] of Object.entries(cruiseTotals)) {
                 allTotals[currency] = (allTotals[currency] || 0) + amount;
               }
 
@@ -157,12 +161,17 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
               const hasAccommodations = quote.accommodations_data && quote.accommodations_data.length > 0;
               const hasTransfers = quote.transfers_data && quote.transfers_data.length > 0;
               const hasServices = quote.services_data && quote.services_data.length > 0;
+              const hasCruises = quote.cruises_data && quote.cruises_data.length > 0;
               let tipoCotizacion = "";
-              if (hasFlights && !hasAccommodations && !hasTransfers && !hasServices) {
+              if (hasCruises && !hasFlights && !hasAccommodations && !hasTransfers && !hasServices) {
+                tipoCotizacion = "Crucero";
+              } else if (hasFlights && !hasAccommodations && !hasTransfers && !hasServices && !hasCruises) {
                 tipoCotizacion = "Vuelo";
-              } else if (hasFlights && hasAccommodations && !hasTransfers && !hasServices) {
+              } else if (hasFlights && hasAccommodations && !hasTransfers && !hasServices && !hasCruises) {
                 tipoCotizacion = "Vuelo + Alojamiento";
-              } else if (hasFlights && (hasAccommodations || hasTransfers || hasServices)) {
+              } else if (hasFlights && (hasAccommodations || hasTransfers || hasServices || hasCruises)) {
+                tipoCotizacion = "Itinerario completo";
+              } else if (hasCruises && (hasAccommodations || hasTransfers || hasServices)) {
                 tipoCotizacion = "Itinerario completo";
               } else {
                 tipoCotizacion = "Personalizada";

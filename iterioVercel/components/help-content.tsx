@@ -608,6 +608,141 @@ export const HelpContent: React.FC<HelpContentProps> = ({ formData }) => {
           return data.services[i].precio?.trim() && Number(data.services[i].precio) <= 0
         }
       }
+    ]).flat()),
+
+    // CRUCEROS - Obligatorio en modo cruise, opcional (advertencia) en modo full
+    {
+      id: 'cruises_required',
+      label: 'Agregar al menos un crucero',
+      required: true,
+      section: 'Cruceros',
+      condition: (data) => {
+        return data.formMode === 'cruise' && (!data.cruises || data.cruises.length === 0)
+      }
+    },
+    {
+      id: 'cruises_optional',
+      label: 'Agregar cruceros',
+      required: false,
+      section: 'Cruceros',
+      condition: (data) => {
+        return data.formMode === 'full' && (!data.cruises || data.cruises.length === 0)
+      }
+    },
+    // Generar validaciones dinámicas para cada crucero
+    ...(Array.from({ length: 5 }, (_, i) => [
+      {
+        id: `cruise_${i + 1}_empresa`,
+        label: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.length) return ''
+          const cruiseCount = data.cruises.length
+          return cruiseCount > 1 ? `Crucero ${i + 1}: Empresa` : 'Empresa'
+        },
+        required: true,
+        section: 'Cruceros',
+        condition: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.[i]) return false
+          return !data.cruises[i].empresa?.trim()
+        }
+      },
+      {
+        id: `cruise_${i + 1}_nombreBarco`,
+        label: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.length) return ''
+          const cruiseCount = data.cruises.length
+          return cruiseCount > 1 ? `Crucero ${i + 1}: Nombre del barco` : 'Nombre del barco'
+        },
+        required: true,
+        section: 'Cruceros',
+        condition: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.[i]) return false
+          return !data.cruises[i].nombreBarco?.trim()
+        }
+      },
+      {
+        id: `cruise_${i + 1}_destino`,
+        label: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.length) return ''
+          const cruiseCount = data.cruises.length
+          return cruiseCount > 1 ? `Crucero ${i + 1}: Destino` : 'Destino'
+        },
+        required: true,
+        section: 'Cruceros',
+        condition: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.[i]) return false
+          return !data.cruises[i].destino?.trim()
+        }
+      },
+      {
+        id: `cruise_${i + 1}_fechas`,
+        label: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.length) return ''
+          const cruiseCount = data.cruises.length
+          return cruiseCount > 1 ? `Crucero ${i + 1}: Fechas de partida y regreso` : 'Fechas de partida y regreso'
+        },
+        required: true,
+        section: 'Cruceros',
+        condition: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.[i]) return false
+          return !data.cruises[i].fechaPartida?.trim() || !data.cruises[i].fechaRegreso?.trim()
+        }
+      },
+      {
+        id: `cruise_${i + 1}_tipoCabina`,
+        label: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.length) return ''
+          const cruiseCount = data.cruises.length
+          return cruiseCount > 1 ? `Crucero ${i + 1}: Tipo de cabina` : 'Tipo de cabina'
+        },
+        required: true,
+        section: 'Cruceros',
+        condition: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.[i]) return false
+          return !data.cruises[i].tipoCabina?.trim()
+        }
+      },
+      {
+        id: `cruise_${i + 1}_precio`,
+        label: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.length) return ''
+          const cruiseCount = data.cruises.length
+          return cruiseCount > 1 ? `Crucero ${i + 1}: Precio` : 'Precio'
+        },
+        required: true,
+        section: 'Cruceros',
+        condition: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.[i]) return false
+          return !data.cruises[i].precio?.trim()
+        }
+      },
+      {
+        id: `cruise_${i + 1}_precio_cero`,
+        label: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.length) return ''
+          const cruiseCount = data.cruises.length
+          return cruiseCount > 1 ? `Crucero ${i + 1}: El precio del crucero es 0` : 'El precio del crucero es 0'
+        },
+        required: false,
+        section: 'Cruceros',
+        condition: (data: any) => {
+          const hasCruiseMode = ['cruise', 'full'].includes(data.formMode)
+          if (!hasCruiseMode || !data.cruises?.[i]) return false
+          return data.cruises[i].precio?.trim() && Number(data.cruises[i].precio) <= 0
+        }
+      }
     ]).flat())
   ];
 

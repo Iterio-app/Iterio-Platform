@@ -32,7 +32,7 @@ export default function SaveStatusIndicator({
           <span className="flex items-center gap-1 text-green-600 font-medium text-sm">
             <CheckCircle className="h-4 w-4" />
             Último guardado:
-            <span className="ml-1 px-2 py-0.5 rounded bg-green-50 text-green-700 font-mono text-xs">{lastSaved.toLocaleTimeString()}</span>
+            <span className="ml-1 px-2 py-0.5 rounded bg-green-50 text-green-700 font-mono text-xs">{lastSaved.toLocaleTimeString('es-ES', { hour12: false })}</span>
           </span>
         )}
         {hasUnsavedChanges && !isSaving && (

@@ -17,6 +17,7 @@ import FlightsSection from "@/components/flights-section"
 import AccommodationSection from "@/components/accommodation-section"
 import TransfersSection from "@/components/transfers-section"
 import ServicesSection from "@/components/services-section"
+import CruiseSection from "@/components/cruise-section"
 import SummarySection from "@/components/summary-section"
 import QuotesHistory from "@/components/quotes-history"
 import { LoginForm } from "@/components/auth/login-form"
@@ -177,6 +178,25 @@ export default function TravelQuoteGenerator() {
       }
     }
 
+    // Cruceros (solo en cruise)
+    if (formMode === 'cruise') {
+      if (!cruises || cruises.length === 0) {
+        errors++;
+      } else {
+        cruises.forEach((cruise) => {
+          if (!cruise.empresa?.trim()) errors++;
+          if (!cruise.nombreBarco?.trim()) errors++;
+          if (!cruise.destino?.trim()) errors++;
+          if (!cruise.fechaPartida) errors++;
+          if (!cruise.fechaRegreso) errors++;
+          if (!cruise.tipoCabina?.trim()) errors++;
+          if (!cruise.precio) errors++;
+          // Fechas válidas
+          if (cruise.fechaPartida && cruise.fechaRegreso && new Date(cruise.fechaPartida) >= new Date(cruise.fechaRegreso)) errors++;
+        });
+      }
+    }
+
     return errors;
   };
 
@@ -187,6 +207,7 @@ export default function TravelQuoteGenerator() {
     if (accommodations?.length) items++;
     if (transfers?.length) items++;
     if (services?.length) items++;
+    if (cruises?.length) items++;
     if (summaryData?.total) items++;
     return items;
   };
@@ -246,11 +267,13 @@ export default function TravelQuoteGenerator() {
   const [accommodations, setAccommodations] = useState<any[]>([]); // cada hotel tendrá currency y useCustomCurrency
   const [transfers, setTransfers] = useState<any[]>([]); // cada traslado tendrá currency y useCustomCurrency
   const [services, setServices] = useState<any[]>([]); // cada servicio tendrá currency y useCustomCurrency
+  const [cruises, setCruises] = useState<any[]>([]); // cada crucero tendrá currency y useCustomCurrency
   const [summaryData, setSummaryData] = useState({
     subtotalVuelos: 0,
     subtotalHoteles: 0,
     subtotalTraslados: 0,
     subtotalServicios: 0,
+    subtotalCruceros: 0,
     subtotal: 0,
     total: 0,
     observaciones: "",
@@ -283,6 +306,7 @@ export default function TravelQuoteGenerator() {
 
   // Función para detectar cambios en los datos
   const markAsChanged = () => {
+    console.log('🔄 markAsChanged called')
     setHasUnsavedChanges(true)
     
     // Limpiar timeout anterior
@@ -291,9 +315,18 @@ export default function TravelQuoteGenerator() {
     }
     
     // Auto-guardar después de 3 segundos de inactividad
-    const timeout = setTimeout(() => {
-      if (hasUnsavedChanges && user) {
-        saveCurrentQuote(true) // true = auto-save
+    const timeout = setTimeout(async () => {
+      console.log('⏰ Auto-save timeout triggered, user:', !!user)
+      if (user) {
+        try {
+          console.log('💾 Starting auto-save...')
+          await saveCurrentQuote(true) // true = auto-save
+          console.log('✅ Auto-save completed successfully')
+        } catch (error) {
+          console.error('❌ Auto-save failed:', error)
+        }
+      } else {
+        console.log('❌ Auto-save skipped: no user')
       }
     }, 3000)
     
@@ -413,12 +446,13 @@ export default function TravelQuoteGenerator() {
 
   // Actualizar subtotales cuando cambian los datos
   useEffect(() => {
-    // Solo sumar alojamiento, traslados y servicios
+    // Solo sumar alojamiento, traslados, servicios y cruceros
     const accommodationTotal = accommodations.reduce((sum, acc) => sum + (acc.precioTotal || 0), 0)
-    const transferTotal = transfers.reduce((sum, transfer) => sum + (Number.parseFloat(transfer.precio) || 0), 0)
-    const serviceTotal = services.reduce((sum, service) => sum + (Number.parseFloat(service.precio) || 0), 0)
+    const transferTotal = transfers.reduce((sum, transfer) => sum + (transfer.mostrarPrecio ? (Number.parseFloat(transfer.precio) || 0) : 0), 0)
+    const serviceTotal = services.reduce((sum, service) => sum + (service.mostrarPrecio ? (Number.parseFloat(service.precio) || 0) : 0), 0)
+    const cruiseTotal = cruises.reduce((sum, cruise) => sum + (cruise.mostrarPrecio ? (Number.parseFloat(cruise.precio) || 0) : 0), 0)
 
-    const subtotal = accommodationTotal + transferTotal + serviceTotal
+    const subtotal = accommodationTotal + transferTotal + serviceTotal + cruiseTotal
     const total = subtotal // Sin descuentos ni impuestos
 
     setSummaryData((prev) => ({
@@ -427,10 +461,11 @@ export default function TravelQuoteGenerator() {
       subtotalHoteles: accommodationTotal,
       subtotalTraslados: transferTotal,
       subtotalServicios: serviceTotal,
+      subtotalCruceros: cruiseTotal,
       subtotal,
       total,
     }))
-  }, [flights, accommodations, transfers, services])
+  }, [flights, accommodations, transfers, services, cruises])
 
   useEffect(() => {
     markAsChanged();
@@ -453,6 +488,7 @@ export default function TravelQuoteGenerator() {
     setAccommodations([])
     setTransfers([])
     setServices([])
+    setCruises([])
     setPdfUrl(null)
     setCurrentQuoteId(null)
     setQuoteTitle("")
@@ -465,17 +501,20 @@ export default function TravelQuoteGenerator() {
 
   const loadQuote = (quote: Quote) => {
     // Detectar tipo de cotización
-    let detectedFormMode: 'flight' | 'flight_hotel' | 'full' = 'full';
+    let detectedFormMode: 'flight' | 'flight_hotel' | 'full' | 'cruise' = 'full';
     const hasFlights = quote.flights_data && quote.flights_data.length > 0;
     const hasAccommodations = quote.accommodations_data && quote.accommodations_data.length > 0;
     const hasTransfers = quote.transfers_data && quote.transfers_data.length > 0;
     const hasServices = quote.services_data && quote.services_data.length > 0;
+    const hasCruises = quote.cruises_data && quote.cruises_data.length > 0;
 
-    if (hasFlights && !hasAccommodations && !hasTransfers && !hasServices) {
+    if (hasCruises && !hasFlights && !hasAccommodations && !hasTransfers && !hasServices) {
+      detectedFormMode = 'cruise';
+    } else if (hasFlights && !hasAccommodations && !hasTransfers && !hasServices && !hasCruises) {
       detectedFormMode = 'flight';
-    } else if (hasFlights && hasAccommodations && !hasTransfers && !hasServices) {
+    } else if (hasFlights && hasAccommodations && !hasTransfers && !hasServices && !hasCruises) {
       detectedFormMode = 'flight_hotel';
-    } else if (hasFlights && (hasAccommodations || hasTransfers || hasServices)) {
+    } else if (hasFlights || hasAccommodations || hasTransfers || hasServices || hasCruises) {
       detectedFormMode = 'full';
     } else {
       detectedFormMode = 'full'; // O ajusta según tu lógica
@@ -510,6 +549,10 @@ export default function TravelQuoteGenerator() {
       setServices(quote.services_data)
     }
 
+    if (quote.cruises_data) {
+      setCruises(quote.cruises_data)
+    }
+
     if (quote.summary_data) {
       setSummaryData(quote.summary_data)
       if (quote.summary_data.currency) {
@@ -538,7 +581,11 @@ export default function TravelQuoteGenerator() {
   }
 
   const saveCurrentQuote = async (isAutoSave = false) => {
-    if (!user) return
+    console.log(`💾 saveCurrentQuote called, isAutoSave: ${isAutoSave}, user: ${!!user}`)
+    if (!user) {
+      console.log('❌ saveCurrentQuote: No user, returning')
+      return
+    }
 
     try {
       // Validar fechas antes de guardar
@@ -557,13 +604,25 @@ export default function TravelQuoteGenerator() {
       });
 
       if (invalidAccommodations.length > 0 || invalidFlights.length > 0) {
+        console.log('❌ Invalid dates found, aborting save')
         if (!isAutoSave) {
           setError("Hay fechas inválidas en alojamientos o vuelos. Por favor, corrige las fechas antes de guardar.");
         }
         return;
       }
 
+      console.log('📝 Setting isSaving to true')
       setIsSaving(true)
+      
+      // Limpiar y validar datos antes de enviar
+      const cleanCruises = cruises.map(cruise => ({
+        ...cruise,
+        precio: cruise.precio || "0",
+        cantidadDias: Number(cruise.cantidadDias) || 0,
+        useCustomCurrency: Boolean(cruise.useCustomCurrency),
+        currency: cruise.currency || selectedCurrency
+      }))
+      
       const quoteData = {
         title: quoteTitle || `Cotización ${destinationData.pais} ${destinationData.ciudad || "Sin título"}`,
         destination: `${destinationData.pais}${destinationData.ciudad ? `, ${destinationData.ciudad}` : ""}`,
@@ -573,22 +632,31 @@ export default function TravelQuoteGenerator() {
         accommodations_data: accommodations,
         transfers_data: transfers,
         services_data: services,
+        cruises_data: cleanCruises,
         summary_data: { ...summaryData, currency: selectedCurrency, mostrarCantidadPasajeros },
         template_data: template,
-        total_amount: summaryData.total,
+        total_amount: Number(summaryData.total) || 0,
         client_name: clientName,
         status: "draft",
       }
 
+      console.log('📊 Prepared quote data:', { currentQuoteId, cruisesCount: cleanCruises.length })
+      
       if (currentQuoteId) {
+        console.log('🔄 Updating existing quote:', currentQuoteId)
         await updateQuote(currentQuoteId, quoteData)
+        console.log('✅ Quote updated successfully')
       } else {
+        console.log('➕ Creating new quote')
         const newQuote = await saveQuote(quoteData)
         setCurrentQuoteId(newQuote.id)
+        console.log('✅ New quote created with ID:', newQuote.id)
       }
 
+      console.log('🔄 Updating save state')
       setLastSaved(new Date())
       setHasUnsavedChanges(false)
+      console.log('✅ Save state updated successfully')
       
       if (!isAutoSave) {
         setError(null)
@@ -598,10 +666,16 @@ export default function TravelQuoteGenerator() {
         setTimeout(() => setError(null), 3000)
       }
     } catch (err: any) {
+      console.error('❌ saveCurrentQuote failed:', err)
+      console.error('❌ Error details:', { message: err.message, stack: err.stack })
       if (!isAutoSave) {
         setError(err.message)
+        console.log('🚨 Error set for user:', err.message)
+      } else {
+        console.log('🔇 Auto-save error (silent):', err.message)
       }
     } finally {
+      console.log('🏁 saveCurrentQuote finally block, setting isSaving to false')
       setIsSaving(false)
     }
   }
@@ -776,11 +850,26 @@ export default function TravelQuoteGenerator() {
         useCustomCurrency: service.useCustomCurrency,
         currency: service.currency,
       })),
+      cruceros: cruises.map((cruise) => ({
+        empresa: cruise.empresa,
+        nombreBarco: cruise.nombreBarco,
+        destino: cruise.destino,
+        fechaPartida: cruise.fechaPartida,
+        fechaRegreso: cruise.fechaRegreso,
+        tipoCabina: cruise.tipoCabina,
+        cantidadDias: cruise.cantidadDias,
+        precio: Number.parseFloat(cruise.precio) || 0,
+        mostrarPrecio: cruise.mostrarPrecio,
+        imagenes: cruise.imagenes || [],
+        useCustomCurrency: cruise.useCustomCurrency,
+        currency: cruise.currency,
+      })),
       totales: {
         subtotal_vuelos: summaryData.subtotalVuelos,
         subtotal_hoteles: summaryData.subtotalHoteles,
         subtotal_traslados: summaryData.subtotalTraslados,
         subtotal_actividades: summaryData.subtotalServicios,
+        subtotal_cruceros: summaryData.subtotalCruceros,
         subtotal: summaryData.subtotal,
         total: summaryData.total,
         mostrar_total: summaryData.mostrarTotal,
@@ -812,6 +901,13 @@ export default function TravelQuoteGenerator() {
           const moneda = service.useCustomCurrency && service.currency ? service.currency : selectedCurrency;
           if (service.precio && moneda) {
             totales[moneda] = (totales[moneda] || 0) + Number(service.precio);
+          }
+        });
+        // Cruceros
+        cruises.forEach(cruise => {
+          const moneda = cruise.useCustomCurrency && cruise.currency ? cruise.currency : selectedCurrency;
+          if (cruise.precio && moneda) {
+            totales[moneda] = (totales[moneda] || 0) + Number(cruise.precio);
           }
         });
         return totales;
@@ -1106,10 +1202,10 @@ export default function TravelQuoteGenerator() {
     setActiveTab('templates');
   };
 
-  const [formMode, setFormMode] = useState<'flight' | 'flight_hotel' | 'full'>('full');
+  const [formMode, setFormMode] = useState<'flight' | 'flight_hotel' | 'full' | 'cruise'>('full');
 
   // Handler para FloatingNewQuoteButton
-  const handleNewQuoteMode = async (mode: 'flight' | 'flight_hotel' | 'full') => {
+  const handleNewQuoteMode = async (mode: 'flight' | 'flight_hotel' | 'full' | 'cruise') => {
     setFormMode(mode);
     clearForm();
     setShowTemplateSelectModal(true);
@@ -1411,7 +1507,11 @@ export default function TravelQuoteGenerator() {
                             <AccommodationSection accommodations={accommodations} onChange={setAccommodations} selectedCurrency={selectedCurrency} />
                             <TransfersSection transfers={transfers} onChange={setTransfers} selectedCurrency={selectedCurrency} />
                             <ServicesSection services={services} onChange={setServices} selectedCurrency={selectedCurrency} />
+                            <CruiseSection cruises={cruises} onChange={setCruises} selectedCurrency={selectedCurrency} onMarkAsChanged={markAsChanged} />
                           </>
+                        )}
+                        {formMode === 'cruise' && (
+                          <CruiseSection cruises={cruises} onChange={setCruises} selectedCurrency={selectedCurrency} onMarkAsChanged={markAsChanged} />
                         )}
                       </>
                     )}
@@ -1422,6 +1522,7 @@ export default function TravelQuoteGenerator() {
                         accommodations={accommodations}
                         transfers={transfers}
                         services={services}
+                        cruises={cruises}
                         selectedCurrency={selectedCurrency}
                         onGeneratePdf={generatePdf}
                         isGenerating={isProcessing}
@@ -1474,6 +1575,7 @@ export default function TravelQuoteGenerator() {
                             accommodations,
                             transfers,
                             services,
+                            cruises,
                             selectedCurrency,
                             formMode,
                             summaryData: {

@@ -42,6 +42,7 @@ export function useQuotes(user: User | null) {
     accommodations_data?: any
     transfers_data?: any
     services_data?: any
+    cruises_data?: any
     summary_data?: any
     template_data?: any
     total_amount?: number
