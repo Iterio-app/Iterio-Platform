@@ -31,6 +31,7 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null)
+  const [generatingPreview, setGeneratingPreview] = useState<string | null>(null)
 
   const filteredQuotes = quotes.filter((quote) => {
     const matchesSearch =
@@ -62,6 +63,8 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
     switch (status) {
       case "completed":
         return "bg-green-100 text-green-800"
+      case "generated":
+        return "bg-yellow-100 text-yellow-800"
       case "sent":
         return "bg-blue-100 text-blue-800"
       case "draft":
@@ -75,12 +78,332 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
     switch (status) {
       case "completed":
         return "Completada"
+      case "generated":
+        return "Generada"
       case "sent":
         return "Enviada"
       case "draft":
         return "Borrador"
       default:
         return "Borrador"
+    }
+  }
+
+  const handleViewPreview = async (quote: Quote) => {
+    setGeneratingPreview(quote.id)
+    try {
+      // --- Replicar lógica de cálculo de totales ---
+      const flights = quote.flights_data || [];
+      const accommodations = quote.accommodations_data || [];
+      const transfers = quote.transfers_data || [];
+      const services = quote.services_data || [];
+      const cruises = quote.cruises_data || [];
+
+      const totalesPorMoneda = [...flights, ...accommodations, ...transfers, ...services, ...cruises].reduce((acc, item) => {
+        if (item && typeof item.precio === 'number' && item.moneda) {
+          acc[item.moneda] = (acc[item.moneda] || 0) + item.precio;
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      const quoteDataForPdf = {
+        destination: {
+          pais: quote.destination?.split(',')[1]?.trim() || '',
+          ciudad: quote.destination?.split(',')[0]?.trim() || '',
+          año: new Date(quote.created_at).getFullYear().toString(),
+          meses: quote.summary_data?.meses || []
+        },
+        client: {
+          cantidadPasajeros: quote.summary_data?.cantidadPasajeros || 0,
+          cantidadAdultos: quote.summary_data?.cantidadAdultos || 0,
+          cantidadMenores: quote.summary_data?.cantidadMenores || 0,
+          cantidadInfantes: quote.summary_data?.cantidadInfantes || 0
+        },
+        flights,
+        accommodations,
+        transfers,
+        services,
+        cruises,
+        quoteTitle: quote.title,
+        clientName: quote.client_name || '',
+        selectedCurrency: quote.summary_data?.currency || 'USD',
+        summary: quote.summary_data || {},
+        formMode: quote.summary_data?.formMode || 'full',
+        mostrarCantidadPasajeros: quote.summary_data?.mostrarCantidadPasajeros ?? true,
+        totalesPorMoneda,
+        totales: {
+          ...(quote.summary_data?.totales || {}),
+          total: Object.values(totalesPorMoneda).reduce((a, b) => Number(a) + Number(b), 0)
+        },
+        observaciones: quote.summary_data?.observaciones || ''
+      };
+
+      // Regenerar vista previa usando los datos guardados
+      // Llamar a la API para generar el PDF con la estructura correcta
+      // Transformar los datos al formato esperado por la API
+      const transformToApiFormat = () => {
+        // Obtener requisitos migratorios de los vuelos
+        const requisitosMigratorios = [
+          ...new Set(
+            (quoteDataForPdf.flights || [])
+              .flatMap((v: any) => v.requisitosMigratorios || [])
+              .filter(Boolean)
+          )
+        ];
+        
+        // Obtener datos del cliente con valores por defecto y formato correcto
+        const clientData = {
+          cantidad_pasajeros: Number(quoteDataForPdf.client?.cantidadPasajeros) || 0,
+          cantidad_adultos: Number(quoteDataForPdf.client?.cantidadAdultos) || 0,
+          cantidad_menores: Number(quoteDataForPdf.client?.cantidadMenores) || 0,
+          cantidad_infantes: Number(quoteDataForPdf.client?.cantidadInfantes) || 0,
+          // Usar el valor del checkbox del formulario para mostrar/ocultar la sección
+          mostrarCantidadPasajeros: Boolean(quoteDataForPdf.mostrarCantidadPasajeros)
+        };
+        
+        // Calcular el total de pasajeros si no está definido
+        const cantidadPasajeros = clientData.cantidad_pasajeros > 0 
+          ? clientData.cantidad_pasajeros 
+          : clientData.cantidad_adultos + clientData.cantidad_menores + clientData.cantidad_infantes;
+          
+        // Asegurarse de que el total de pasajeros esté actualizado
+        clientData.cantidad_pasajeros = cantidadPasajeros;
+        
+        // El objeto cliente ya incluye el flag mostrarCantidadPasajeros del formulario
+        const cliente = { ...clientData };
+        
+        // Transformar vuelos
+        const vuelos = (quoteDataForPdf.flights || []).map((vuelo: any) => {
+          const opciones = [];
+          
+          // Agregar opciones de equipaje según corresponda
+          if (vuelo.precioAdultoMochila) {
+            opciones.push({
+              tipo: 'mochila',
+              precio: Number(vuelo.precioAdultoMochila) || 0,
+              pasajero: 'adulto'
+            });
+          }
+          
+          if (vuelo.precioMenorMochila) {
+            opciones.push({
+              tipo: 'mochila',
+              precio: Number(vuelo.precioMenorMochila) || 0,
+              pasajero: 'menor'
+            });
+          }
+          
+          if (vuelo.precioAdultoMochilaCarryOn) {
+            opciones.push({
+              tipo: 'mochilaCarryOn',
+              precio: Number(vuelo.precioAdultoMochilaCarryOn) || 0,
+              pasajero: 'adulto'
+            });
+          }
+          
+          if (vuelo.precioMenorMochilaCarryOn) {
+            opciones.push({
+              tipo: 'mochilaCarryOn',
+              precio: Number(vuelo.precioMenorMochilaCarryOn) || 0,
+              pasajero: 'menor'
+            });
+          }
+          
+          if (vuelo.precioInfante) {
+            opciones.push({
+              tipo: 'infante',
+              precio: Number(vuelo.precioInfante) || 0,
+              pasajero: 'infante'
+            });
+          }
+          
+          return {
+            nombre: vuelo.nombre || '',
+            fechaSalida: vuelo.fechaSalida || '',
+            fechaRetorno: vuelo.fechaRetorno || '',
+            tipoTarifa: vuelo.tipoTarifa || 'economy',
+            imagenes: vuelo.imagenes || [],
+            opciones,
+            condicionesTarifa: vuelo.condicionesTarifa || [],
+            textoLibre: vuelo.textoLibre || '',
+            useCustomCurrency: vuelo.useCustomCurrency || false,
+            currency: vuelo.currency || 'USD'
+          };
+        });
+
+        // Transformar hoteles
+        const hoteles = (quoteDataForPdf.accommodations || []).map((hotel: any) => {
+          // Calcular el precio total sumando las habitaciones si no existe
+          const precioTotalHabitaciones = (hotel.habitaciones || []).reduce(
+            (sum: number, hab: any) => sum + (Number(hab.precio) || 0), 0
+          );
+          
+          return {
+            nombre: hotel.nombre || '',
+            ciudad: hotel.ciudad || '',
+            checkin: hotel.checkin || '',
+            checkout: hotel.checkout || '',
+            cantidadHabitaciones: hotel.cantidadHabitaciones || 1,
+            habitaciones: (hotel.habitaciones || []).map((hab: any) => ({
+              id: hab.id || '',
+              precio: String(hab.precio || 0),
+              regimen: hab.regimen || 'desayuno',
+              regimenTouched: hab.regimenTouched !== false, // true por defecto
+              tipoHabitacion: hab.tipoHabitacion || 'Doble'
+            })),
+            precioTotal: Number(hotel.precioTotal) || precioTotalHabitaciones,
+            mostrarPrecio: hotel.mostrarPrecio !== false,
+            imagenes: hotel.imagenes || [],
+            textoLibre: hotel.textoLibre || '',
+            useCustomCurrency: hotel.useCustomCurrency || false,
+            currency: hotel.currency || 'USD',
+            cantidadNoches: hotel.cantidadNoches || 0
+          };
+        });
+
+        // Obtener totales por moneda
+        const totalesPorMoneda: Record<string, number> = {};
+        
+        // Sumar solo los totales de hoteles (no incluir vuelos en el total)
+        hoteles.forEach((hotel: { currency?: string; precioTotal?: number; mostrarPrecio?: boolean }) => {
+          // Solo sumar si mostrarPrecio es true
+          if (hotel.mostrarPrecio !== false) {
+            const moneda = hotel.currency || 'USD';
+            totalesPorMoneda[moneda] = (totalesPorMoneda[moneda] || 0) + (hotel.precioTotal || 0);
+          }
+        });
+
+        // Calcular total general (solo hoteles)
+        const totalGeneral = Object.values(totalesPorMoneda).reduce((sum: number, val: number) => sum + val, 0);
+        
+        // Obtener requisitos migratorios de los vuelos si no hay en la cotización
+        const requisitosFinales = requisitosMigratorios.length > 0 
+          ? requisitosMigratorios 
+          : ['No se especificaron requisitos migratorios'];
+          
+        // Asegurar que los totales por moneda incluyan todos los servicios
+        const monedasUnicas = new Set([
+          ...hoteles.map((h: any) => h.currency || 'USD'),
+          ...(quoteDataForPdf.cruises || []).map((c: any) => c.currency || 'USD'),
+          ...(quoteDataForPdf.services || []).map((s: any) => s.currency || 'USD')
+        ]);
+        
+        // Inicializar totales por moneda
+        monedasUnicas.forEach(moneda => {
+          if (!totalesPorMoneda[moneda]) {
+            totalesPorMoneda[moneda] = 0;
+          }
+        });
+
+        return {
+          data: {
+            destino: {
+              pais: quoteDataForPdf.destination?.pais || '',
+              ciudad: quoteDataForPdf.destination?.ciudad || '',
+              año: quoteDataForPdf.destination?.año || new Date().getFullYear().toString(),
+              meses: quoteDataForPdf.destination?.meses || []
+            },
+            requisitosMigratorios: requisitosFinales,
+            cliente: {
+              cantidad_pasajeros: cantidadPasajeros,
+              cantidad_adultos: Number(quoteDataForPdf.client?.cantidadAdultos || 0),
+              cantidad_menores: Number(quoteDataForPdf.client?.cantidadMenores || 0),
+              cantidad_infantes: Number(quoteDataForPdf.client?.cantidadInfantes || 0),
+            },
+            vuelos: [],
+            hoteles: hoteles,
+            traslados: quoteDataForPdf.transfers || [],
+            actividades: quoteDataForPdf.services || [],
+            cruceros: quoteDataForPdf.cruises || [],
+            totales: {
+              subtotal_vuelos: 0,
+              subtotal_hoteles: hoteles
+                .filter((h: { mostrarPrecio?: boolean }) => h.mostrarPrecio !== false)
+                .reduce((sum: number, h: { precioTotal?: number }) => sum + (h.precioTotal || 0), 0),
+              subtotal_traslados: 0,
+              subtotal_actividades: 0,
+              subtotal_cruceros: 0,
+              subtotal: totalGeneral,
+              total: totalGeneral,
+              mostrar_total: true,
+              mostrar_nota_tarifas: true,
+              mostrar_nota_precio_total: true,
+              currency: quoteDataForPdf.selectedCurrency || 'USD'
+            },
+            observaciones: quoteDataForPdf.observaciones || '',
+            mostrarCantidadPasajeros: Boolean(quoteDataForPdf.mostrarCantidadPasajeros),
+            totalesPorMoneda
+          },
+          template: {
+            ...(quote.template_data || {
+              primaryColor: '#2563eb',
+              secondaryColor: '#64748b',
+              fontFamily: 'Inter',
+              logo: null,
+              agencyName: 'Tu Agencia de Viajes',
+              agencyAddress: 'Dirección de la agencia',
+              agencyPhone: '+1 234 567 8900',
+              agencyEmail: 'info@tuagencia.com',
+              validityText: 'Esta cotización es válida por 15 días desde la fecha de emisión.'
+            })
+          }
+        };
+      };
+
+      const requestData = transformToApiFormat();
+
+      // Depuración: Verificar datos que se enviarán
+      console.log('Datos que se enviarán a la API:', JSON.stringify(requestData, null, 2));
+      console.log('URL de la API:', '/api/generate-pdf');
+
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      })
+      
+      // Depuración: Verificar la respuesta
+      console.log('Respuesta del servidor:', {
+        ok: response.ok,
+        status: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+        redirected: response.redirected,
+        type: response.type,
+        url: response.url
+      })
+
+      if (!response.ok) {
+        throw new Error("Error al regenerar la vista previa")
+      }
+
+      // Obtener el HTML como texto
+      const html = await response.text()
+      
+      // Depuración: Verificar el contenido HTML
+      console.log('Contenido HTML recibido:', html.substring(0, 500) + '...')
+
+      // Crear un nuevo documento HTML con el contenido recibido
+      const newWindow = window.open('', '_blank')
+      
+      if (!newWindow) {
+        alert('Por favor permite las ventanas emergentes para este sitio e intenta de nuevo')
+        return
+      }
+      
+      // Escribir el contenido HTML en la nueva ventana
+      newWindow.document.open()
+      newWindow.document.write(html)
+      newWindow.document.close()
+      
+      // Asegurarse de que el contenido se renderice correctamente
+      newWindow.document.title = 'Vista Previa de Cotización'
+    } catch (err) {
+      console.error('Error al regenerar vista previa:', err)
+      alert('Error al regenerar la vista previa. Los datos pueden estar incompletos.')
+    } finally {
+      setGeneratingPreview(null)
     }
   }
 
@@ -124,6 +447,7 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
           >
             <option value="all">Todos los estados</option>
             <option value="draft">Borradores</option>
+            <option value="generated">Generadas</option>
             <option value="completed">Completadas</option>
             <option value="sent">Enviadas</option>
           </select>
@@ -234,12 +558,23 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
                           Editar
                         </Button>
                       )}
-                      {quote.pdf_url && (
+                      {quote.pdf_url ? (
                         <Button variant="outline" size="sm" onClick={() => window.open(quote.pdf_url!, "_blank") }>
                           <Download className="h-4 w-4 mr-1" />
-                          PDF
+                          Ver PDF
                         </Button>
-                      )}
+                      ) : quote.status === "generated" ? (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleViewPreview(quote)}
+                          disabled={generatingPreview === quote.id}
+                          className="text-blue-600 hover:text-blue-700"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          {generatingPreview === quote.id ? 'Generando...' : 'Ver vista previa'}
+                        </Button>
+                      ) : null}
                       <Button
                         variant="ghost"
                         size="sm"

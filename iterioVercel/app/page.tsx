@@ -58,7 +58,8 @@ export default function TravelQuoteGenerator() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingStatus, setProcessingStatus] = useState<ProcessingStatus | null>(null)
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null) // URL permanente del bucket
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null) // URL temporal para vista previa
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("form")
   const [isDownloading, setIsDownloading] = useState(false)
@@ -75,6 +76,7 @@ export default function TravelQuoteGenerator() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false)
   
   // Estado global para funcionalidades habilitadas (fácil de extender)
   const [featuresEnabled, setFeaturesEnabled] = useState(() => {
@@ -306,7 +308,14 @@ export default function TravelQuoteGenerator() {
 
   // Función para detectar cambios en los datos
   const markAsChanged = () => {
-    console.log('🔄 markAsChanged called')
+    console.log('🔄 markAsChanged called, isLoadingQuote:', isLoadingQuote)
+    
+    // No marcar como cambiado si estamos cargando una cotización
+    if (isLoadingQuote) {
+      console.log('⏸️ Auto-save skipped: loading quote in progress')
+      return
+    }
+    
     setHasUnsavedChanges(true)
     
     // Limpiar timeout anterior
@@ -489,7 +498,8 @@ export default function TravelQuoteGenerator() {
     setTransfers([])
     setServices([])
     setCruises([])
-    setPdfUrl(null)
+    setPdfUrl(null) // URL permanente del bucket
+    setPreviewUrl(null) // URL temporal de vista previa
     setCurrentQuoteId(null)
     setQuoteTitle("")
     setClientName("")
@@ -500,6 +510,11 @@ export default function TravelQuoteGenerator() {
   }
 
   const loadQuote = (quote: Quote) => {
+    console.log('📂 Loading quote:', quote.id, 'title:', quote.title)
+    
+    // Activar bandera de carga para prevenir auto-guardado
+    setIsLoadingQuote(true)
+    
     // Detectar tipo de cotización
     let detectedFormMode: 'flight' | 'flight_hotel' | 'full' | 'cruise' = 'full';
     const hasFlights = quote.flights_data && quote.flights_data.length > 0;
@@ -564,7 +579,8 @@ export default function TravelQuoteGenerator() {
     setCurrentQuoteId(quote.id)
     setQuoteTitle(quote.title)
     setClientName(quote.client_name || "")
-    setPdfUrl(quote.pdf_url || null)
+    setPdfUrl(quote.pdf_url || null) // Solo URL permanente del bucket
+    setPreviewUrl(null) // Limpiar vista previa temporal al cargar cotización
     setHasUnsavedChanges(false)
     setLastSaved(new Date(quote.updated_at))
 
@@ -578,6 +594,12 @@ export default function TravelQuoteGenerator() {
       url.searchParams.set('tab', 'form');
       window.history.replaceState({}, '', url.toString());
     }
+  
+    // Desactivar bandera de carga después de un pequeño delay para permitir que todos los estados se actualicen
+    setTimeout(() => {
+      console.log('✅ Quote loading completed, enabling auto-save')
+      setIsLoadingQuote(false)
+    }, 100)
   }
 
   const saveCurrentQuote = async (isAutoSave = false) => {
@@ -946,15 +968,16 @@ export default function TravelQuoteGenerator() {
 
       const htmlBlob = await pdfResponse.blob()
       const htmlUrl = URL.createObjectURL(htmlBlob)
-      setPdfUrl(htmlUrl)
+      setPreviewUrl(htmlUrl) // Guardar como vista previa temporal, NO como PDF permanente
 
       setProcessingStatus({ step: "Completado", progress: 100 })
 
-      // Actualizar estado de la cotización
+      // Actualizar estado de la cotización a 'generated' (vista previa creada)
       if (currentQuoteId) {
         await updateQuote(currentQuoteId, {
-          status: "completed",
-          pdf_url: htmlUrl,
+          status: "generated",
+          // IMPORTANTE: NO guardamos pdf_url porque es solo vista previa temporal
+          // pdf_url solo se guarda cuando se descarga y sube al bucket
         })
       }
 
@@ -970,12 +993,20 @@ export default function TravelQuoteGenerator() {
   }
 
   const viewPreview = async () => {
-    if (pdfUrl) {
-      const response = await fetch(pdfUrl, { mode: 'cors' });
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+    // Priorizar vista previa temporal si existe, sino usar PDF permanente
+    const urlToView = previewUrl || pdfUrl;
+    if (urlToView) {
+      if (previewUrl) {
+        // Es una vista previa temporal, abrir directamente
+        window.open(previewUrl, '_blank');
+      } else if (pdfUrl) {
+        // Es un PDF permanente del bucket, descargar como blob para vista
+        const response = await fetch(pdfUrl, { mode: 'cors' });
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+      }
     }
   }
 
@@ -1034,6 +1065,15 @@ export default function TravelQuoteGenerator() {
       const data = await response.json();
       if (data.success && data.pdfUrl) {
         setPdfUrl(data.pdfUrl);
+        
+        // Actualizar estado de la cotización a 'completed' cuando se guarda el PDF
+        if (currentQuoteId) {
+          await updateQuote(currentQuoteId, {
+            status: "completed",
+            pdf_url: data.pdfUrl,
+          });
+        }
+        
         // Descargar el PDF generado como blob
         const response = await fetch(data.pdfUrl, { mode: 'cors' });
         const blob = await response.blob();
@@ -1615,12 +1655,12 @@ export default function TravelQuoteGenerator() {
                     <CardDescription>Tu cotización está lista para visualizar y descargar</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {pdfUrl ? (
+                    {(previewUrl || pdfUrl) ? (
                       <div className="space-y-4">
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                           <p className="text-green-800 font-medium">✅ Cotización generada exitosamente</p>
                           <p className="text-green-600 text-sm mt-1">
-                            Vista previa disponible abajo. Usa el botón de descarga para guardar la cotización en PDF.
+                            {previewUrl ? 'Vista previa temporal disponible abajo.' : 'PDF guardado disponible abajo.'} Usa el botón de descarga para guardar la cotización en PDF.
                           </p>
                         </div>
                         <div className="flex gap-4">
@@ -1641,11 +1681,11 @@ export default function TravelQuoteGenerator() {
                             Abrir cotización en Nueva Pestaña
                           </Button>
                         </div>
-                        {pdfUrl && (
+                        {(previewUrl || pdfUrl) && (
                           <div className="border rounded-lg overflow-hidden mt-2">
                             <iframe
                               id="pdf-preview-iframe"
-                              src={pdfUrl}
+                              src={previewUrl || pdfUrl || undefined} // Priorizar vista previa temporal, sino usar PDF permanente
                               className="w-full h-[600px]"
                               title="Vista previa del PDF"
                               style={{ border: "none" }}
