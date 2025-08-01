@@ -1345,9 +1345,21 @@ export default function TravelQuoteGenerator() {
                 </div>
               )}
               <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">Cancelar</Button>
-                </DialogClose>
+                {userTemplates.length > 0 ? (
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancelar</Button>
+                  </DialogClose>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowTemplateSelectModal(false);
+                      setActiveTab('form');
+                    }}
+                  >
+                    Continuar con template temporal
+                  </Button>
+                )}
               </DialogFooter>
             </DialogContent>
           </Dialog>

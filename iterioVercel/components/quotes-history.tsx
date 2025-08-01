@@ -6,6 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { FileText, Search, Calendar, DollarSign, Eye, Trash2, Download, Plus, Pencil } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog"
 import { useQuotes } from "@/hooks/use-quotes"
 import type { User } from "@supabase/supabase-js"
 import type { Quote } from "@/lib/supabase"
@@ -21,6 +29,8 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
   const { quotes, isLoading, error, deleteQuote } = useQuotes(user)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null)
 
   const filteredQuotes = quotes.filter((quote) => {
     const matchesSearch =
@@ -233,7 +243,10 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => deleteQuote(quote.id)}
+                        onClick={() => {
+                          setShowDeleteConfirm(true)
+                          setQuoteToDelete(quote)
+                        }}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -246,6 +259,35 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
           </div>
         )}
       </CardContent>
+      
+      {/* Modal de confirmación de eliminación */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar cotización?</DialogTitle>
+          </DialogHeader>
+          <p className="text-gray-600">
+            ¿Estás seguro de que quieres eliminar la cotización "{quoteToDelete?.title}"? Esta acción no se puede deshacer.
+          </p>
+          <DialogFooter>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                if (quoteToDelete) {
+                  deleteQuote(quoteToDelete.id)
+                  setShowDeleteConfirm(false)
+                  setQuoteToDelete(null)
+                }
+              }}
+            >
+              Eliminar
+            </Button>
+            <DialogClose asChild>
+              <Button variant="outline">Cancelar</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
