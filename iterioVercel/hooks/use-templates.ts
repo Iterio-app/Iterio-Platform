@@ -441,6 +441,7 @@ export function useTemplates(user: User | null) {
     error,
     validationErrors,
     loadTemplates,
+    loadTemplateById,
     createTemplate,
     updateTemplate,
     deleteTemplate,

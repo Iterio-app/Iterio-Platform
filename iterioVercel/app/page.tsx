@@ -242,6 +242,7 @@ export default function TravelQuoteGenerator() {
     error: templateError,
     validationErrors: templateValidationErrors,
     loadTemplates: loadUserTemplates,
+    loadTemplateById,
     createTemplate,
     updateTemplate: updateTemplateById,
     deleteTemplate,
@@ -1308,8 +1309,13 @@ export default function TravelQuoteGenerator() {
   };
 
   // Handler para seleccionar template guardado
-  const handleSelectTemplate = (tpl: Template) => {
-    updateTemplate(tpl.template_data);
+  const handleSelectTemplate = async (tpl: Template) => {
+    // Si el listado no trae template_data (por optimización), cargarlo primero
+    if (tpl && (tpl as any).template_data) {
+      updateTemplate((tpl as any).template_data);
+    } else {
+      await loadTemplateById(tpl.id);
+    }
     setShowTemplateSelectModal(false);
     setActiveTab('customize');
   };
@@ -1443,8 +1449,11 @@ export default function TravelQuoteGenerator() {
                   <div className="space-y-4 max-h-72 overflow-y-auto">
                     {userTemplates.map((tpl: Template) => (
                       <div key={tpl.id} className="flex items-center gap-4 border border-gray-200 rounded-xl p-3 bg-white hover:shadow-md transition cursor-pointer" onClick={() => handleSelectTemplate(tpl)}>
-                        <div className="w-12 h-12 rounded-lg flex items-center justify-center border border-gray-200 bg-white shadow-sm" style={{ fontFamily: tpl.template_data.fontFamily || "inherit" }}>
-                          {tpl.template_data.logo ? (
+                        <div
+                          className="w-12 h-12 rounded-lg flex items-center justify-center border border-gray-200 bg-white shadow-sm"
+                          style={{ fontFamily: tpl.template_data?.fontFamily ?? "inherit" }}
+                        >
+                          {tpl.template_data?.logo ? (
                             <img src={tpl.template_data.logo} alt="Logo" className="max-h-10 max-w-10 object-contain" />
                           ) : (
                             <span className="text-xl font-bold text-gray-300">?</span>
@@ -1452,7 +1461,7 @@ export default function TravelQuoteGenerator() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-base text-gray-900 truncate">{tpl.name}</div>
-                          {tpl.template_data.agencyName && (
+                          {tpl.template_data?.agencyName && (
                             <div className="text-xs text-gray-500 truncate">{tpl.template_data.agencyName}</div>
                           )}
                         </div>
