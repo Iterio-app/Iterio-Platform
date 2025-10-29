@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Upload, X, ImageIcon } from "lucide-react"
+import { optimizeImage } from "@/lib/image-optimizer"
 
 interface ImageUploadProps {
   id: string
@@ -25,9 +26,18 @@ export default function ImageUpload({ id, label, image, onImageChange, className
     (file: File) => {
       if (file && file.type.startsWith("image/")) {
         const reader = new FileReader()
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
           const imageData = e.target?.result as string
-          onImageChange(imageData)
+          
+          // Optimizar imagen antes de guardar
+          try {
+            const optimizedImage = await optimizeImage(imageData)
+            onImageChange(optimizedImage)
+          } catch (error) {
+            console.error('Error al optimizar imagen:', error)
+            // Si falla la optimización, usar imagen original
+            onImageChange(imageData)
+          }
         }
         reader.readAsDataURL(file)
       }

@@ -446,12 +446,9 @@ export default function TravelQuoteGenerator() {
     }
   };
 
-  // useEffect para cargar templates cuando se entra al tab
-  useEffect(() => {
-    if (activeTab === 'templates') {
-      fetchTemplates();
-    }
-  }, [activeTab]);
+  // ✅ OPTIMIZACIÓN: Eliminado useEffect que hacía re-fetch automático
+  // El cache en use-templates.ts evita fetches innecesarios
+  // Los templates se cargan automáticamente al montar el hook
 
   // Actualizar subtotales cuando cambian los datos
   useEffect(() => {
@@ -969,6 +966,11 @@ export default function TravelQuoteGenerator() {
       const htmlBlob = await pdfResponse.blob()
       const htmlUrl = URL.createObjectURL(htmlBlob)
       setPreviewUrl(htmlUrl) // Guardar como vista previa temporal, NO como PDF permanente
+      
+      // Limpiar pdfUrl para forzar regeneración en la próxima descarga
+      // Esto asegura que el PDF descargado refleje la vista previa actual
+      setPdfUrl(null)
+      console.log('🔄 Vista previa generada, pdfUrl limpiado para forzar regeneración')
 
       setProcessingStatus({ step: "Completado", progress: 100 })
 
@@ -1020,6 +1022,10 @@ export default function TravelQuoteGenerator() {
   const handleDownloadPdf = async () => {
     if (isDownloadingPdf) return;
     setIsDownloadingPdf(true);
+    
+    console.log('\ud83d\udce5 [CLIENT] Iniciando descarga de PDF...');
+    const clientStartTime = Date.now();
+    
     try {
       // --- Generar nombre de archivo personalizado ---
       const ciudad = destinationData.ciudad?.trim() || 'Destino';
@@ -1028,32 +1034,75 @@ export default function TravelQuoteGenerator() {
       const pad = (n: number) => n.toString().padStart(2, '0');
       const fechaStr = `${pad(hoy.getDate())}-${pad(hoy.getMonth() + 1)}-${hoy.getFullYear()}`;
       const nombreArchivo = `${ciudad}_${año}_${fechaStr}`.replace(/\s+/g, '_');
+      console.log('\ud83d\udcdd [CLIENT] Nombre de archivo:', nombreArchivo);
       // --- Fin nombre personalizado ---
+      
+      // Verificar si existe un PDF guardado y si realmente existe en el bucket
+      // Si pdfUrl es null, significa que se gener\u00f3 una nueva vista previa y hay que regenerar
       if (isSupabasePdfUrl(pdfUrl)) {
-        // Descargar el PDF como blob para forzar el nombre y evitar abrir en la misma pestaña
-        const response = await fetch(pdfUrl!, { mode: 'cors' });
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${nombreArchivo}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        return;
+        console.log('\ud83d\udd0d [CLIENT] PDF URL encontrada en DB, verificando si existe en bucket:', pdfUrl);
+        try {
+          const response = await fetch(pdfUrl!, { mode: 'cors', method: 'HEAD' });
+          if (response.ok) {
+            console.log('\u2705 [CLIENT] PDF existe en bucket y no hay cambios, descargando...');
+            // Descargar el PDF como blob
+            const downloadResponse = await fetch(pdfUrl!, { mode: 'cors' });
+            const blob = await downloadResponse.blob();
+            
+            // Verificar que sea un PDF v\u00e1lido (no HTML de error)
+            if (blob.type === 'application/pdf' || blob.type === 'application/octet-stream') {
+              const url = window.URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `${nombreArchivo}.pdf`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              window.URL.revokeObjectURL(url);
+              console.log('\u2705 [CLIENT] PDF descargado exitosamente');
+              return;
+            } else {
+              console.warn('\u26a0\ufe0f [CLIENT] El archivo no es un PDF v\u00e1lido, regenerando...');
+            }
+          } else {
+            console.warn('\u26a0\ufe0f [CLIENT] PDF no existe en bucket (status:', response.status, '), regenerando...');
+          }
+        } catch (error) {
+          console.warn('\u26a0\ufe0f [CLIENT] Error al verificar PDF existente:', error, '- Regenerando...');
+        }
       }
+      
+      console.log('\ud83d\udd04 [CLIENT] Generando nuevo PDF...');
+      
       // Obtener HTML seguro del iframe
       const iframe = document.getElementById('pdf-preview-iframe') as HTMLIFrameElement | null;
+      console.log('\ud83d\uddbc\ufe0f [CLIENT] Iframe encontrado:', !!iframe);
+      
       const html =
         iframe && iframe.contentDocument && iframe.contentDocument.documentElement
           ? iframe.contentDocument.documentElement.outerHTML
           : null;
+      
       if (!html) {
-        alert('No se pudo obtener el HTML de la vista previa.');
+        console.error('❌ [CLIENT] No se pudo obtener HTML del iframe');
+        alert('No se pudo obtener el HTML de la vista previa.\n\n💡 Sugerencia: Genera la vista previa primero haciendo click en "Generar Vista Previa".');
         setIsDownloadingPdf(false);
         return;
       }
+      
+      // Validar que el HTML no esté vacío o sea muy pequeño
+      if (html.length < 1000) {
+        console.error('❌ [CLIENT] HTML demasiado pequeño, posiblemente vacío');
+        alert('La vista previa parece estar vacía.\n\n💡 Sugerencia: Genera la vista previa primero haciendo click en "Generar Vista Previa".');
+        setIsDownloadingPdf(false);
+        return;
+      }
+      
+      console.log('\u2705 [CLIENT] HTML obtenido del iframe, longitud:', html.length);
+      console.log('\ud83d\ude80 [CLIENT] Enviando request a /api/save-pdf...');
+      console.log('\ud83c\udfaf [CLIENT] Quote ID:', currentQuoteId);
+      
+      const fetchStart = Date.now();
       const response = await fetch('/api/save-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1062,21 +1111,53 @@ export default function TravelQuoteGenerator() {
           html,
         }),
       });
+      
+      const fetchTime = Date.now() - fetchStart;
+      console.log('\u23f1\ufe0f [CLIENT] Request completado en:', fetchTime, 'ms');
+      console.log('\ud83d\udcca [CLIENT] Response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('\u274c [CLIENT] Error en response:', errorText);
+        alert(`Error al generar el PDF: ${response.status} ${response.statusText}`);
+        setIsDownloadingPdf(false);
+        return;
+      }
+      
       const data = await response.json();
+      console.log('\ud83d\udcca [CLIENT] Response data:', data);
+      
+      // Mostrar timings del servidor si están disponibles
+      if (data.timings) {
+        console.log('\u23f1\ufe0f [SERVER TIMINGS]:', data.timings);
+        console.table(data.timings);
+      }
       if (data.success && data.pdfUrl) {
+        console.log('\u2705 [CLIENT] PDF generado exitosamente');
+        console.log('\ud83d\udd17 [CLIENT] PDF URL:', data.pdfUrl);
+        
         setPdfUrl(data.pdfUrl);
+        console.log('\u2705 [CLIENT] PDF URL actualizada');
         
         // Actualizar estado de la cotización a 'completed' cuando se guarda el PDF
         if (currentQuoteId) {
+          console.log('\ud83d\udcbe [CLIENT] Actualizando estado de cotización...');
           await updateQuote(currentQuoteId, {
             status: "completed",
             pdf_url: data.pdfUrl,
           });
+          console.log('\u2705 [CLIENT] Cotización actualizada');
         }
         
         // Descargar el PDF generado como blob
+        console.log('\ud83d\udce5 [CLIENT] Descargando PDF desde Supabase...');
+        const downloadStart = Date.now();
         const response = await fetch(data.pdfUrl, { mode: 'cors' });
         const blob = await response.blob();
+        const downloadTime = Date.now() - downloadStart;
+        console.log('\u23f1\ufe0f [CLIENT] Descarga completada en:', downloadTime, 'ms');
+        console.log('\ud83d\udcca [CLIENT] Tamaño del PDF:', blob.size, 'bytes');
+        
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -1085,7 +1166,11 @@ export default function TravelQuoteGenerator() {
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
+        
+        const totalTime = Date.now() - clientStartTime;
+        console.log('\ud83c\udf89 [CLIENT] Proceso completo en:', totalTime, 'ms');
       } else {
+        console.error('\u274c [CLIENT] Error en la respuesta:', data);
         alert('Error al generar el PDF.');
       }
     } finally {

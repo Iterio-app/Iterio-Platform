@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Search, Calendar, DollarSign, Eye, Trash2, Download, Plus, Pencil } from "lucide-react"
+import { FileText, Search, Calendar, DollarSign, Eye, Trash2, Download, Plus, Pencil, RefreshCw } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -26,12 +26,18 @@ interface QuotesHistoryProps {
 }
 
 export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: QuotesHistoryProps) {
-  const { quotes, isLoading, error, deleteQuote } = useQuotes(user)
+  const { quotes, isLoading, error, deleteQuote, fetchQuoteById, refetch } = useQuotes(user)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null)
   const [generatingPreview, setGeneratingPreview] = useState<string | null>(null)
+  const [loadingQuoteId, setLoadingQuoteId] = useState<string | null>(null)
+
+  // ✅ Hacer fetch cuando el componente se monta (usuario va a la tab de historial)
+  useEffect(() => {
+    refetch()
+  }, [])
 
   const filteredQuotes = quotes.filter((quote) => {
     const matchesSearch =
@@ -62,22 +68,22 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
-        return "bg-green-100 text-green-800"
+        return "bg-green-200 text-green-800 hover:bg-green-400"
       case "generated":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-200 text-yellow-800 hover:bg-yellow-400"
       case "sent":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800 hover:bg-blue-300"
       case "draft":
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-200 text-gray-800 hover:bg-gray-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-200 text-gray-800 hover:bg-gray-400"
     }
   }
 
   const getStatusText = (status: string) => {
     switch (status) {
       case "completed":
-        return "Completada"
+        return "Descargada"
       case "generated":
         return "Generada"
       case "sent":
@@ -426,6 +432,16 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
             <FileText className="h-5 w-5" />
             Mis Cotizaciones ({quotes.length})
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch(true)}
+            disabled={isLoading}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -553,9 +569,26 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
 
                     <div className="flex items-center gap-2 ml-4">
                       {onLoadQuote && (
-                        <Button variant="outline" size="sm" onClick={() => onLoadQuote(quote)}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={loadingQuoteId === quote.id}
+                          onClick={async () => {
+                            try {
+                              setLoadingQuoteId(quote.id)
+                              console.log('📥 Cargando cotización completa para editar...')
+                              const fullQuote = await fetchQuoteById(quote.id)
+                              onLoadQuote(fullQuote)
+                            } catch (error) {
+                              console.error('Error al cargar cotización:', error)
+                              alert('Error al cargar la cotización')
+                            } finally {
+                              setLoadingQuoteId(null)
+                            }
+                          }}
+                        >
                           <Pencil className="h-4 w-4 mr-1" />
-                          Editar
+                          {loadingQuoteId === quote.id ? 'Cargando...' : 'Editar'}
                         </Button>
                       )}
                       {quote.pdf_url ? (

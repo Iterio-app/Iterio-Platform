@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Upload, Palette, Type, Building } from "lucide-react"
+import { Upload, Palette, Type, Building, X } from "lucide-react"
 import ColorPicker from "./color-picker"
 import { useCallback } from "react"
+import { optimizeImage } from "@/lib/image-optimizer"
 
 interface Template {
   primaryColor: string
@@ -47,9 +48,22 @@ export default function TemplateCustomizer({ template, onTemplateChange }: Templ
     const file = event.target.files?.[0]
     if (file) {
       const reader = new FileReader()
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const logoData = e.target?.result as string
-        onTemplateChange({ ...template, logo: logoData })
+        
+        // Optimizar logo antes de guardar
+        try {
+          const optimizedLogo = await optimizeImage(logoData, {
+            maxWidth: 800, // Logos no necesitan ser tan grandes
+            maxHeight: 400,
+            quality: 0.9 // Mayor calidad para logos
+          })
+          onTemplateChange({ ...template, logo: optimizedLogo })
+        } catch (error) {
+          console.error('Error al optimizar logo:', error)
+          // Si falla la optimización, usar logo original
+          onTemplateChange({ ...template, logo: logoData })
+        }
       }
       reader.readAsDataURL(file)
     }

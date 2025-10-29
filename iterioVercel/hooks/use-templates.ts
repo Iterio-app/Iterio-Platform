@@ -128,8 +128,14 @@ const handleSupabaseError = (error: any): TemplateError => {
   }
 }
 
+// ✅ Cache global fuera del hook para persistir entre montajes
+let templatesCache: Template[] = []
+let lastTemplatesFetch = 0
+let isFetchingTemplates = false // Flag para evitar fetches simultáneos
+const TEMPLATES_CACHE_DURATION = 30000 // 30 segundos
+
 export function useTemplates(user: User | null) {
-  const [templates, setTemplates] = useState<Template[]>([])
+  const [templates, setTemplates] = useState<Template[]>(templatesCache) // Inicializar con cache
   const [currentTemplate, setCurrentTemplate] = useState<TemplateConfig>(defaultTemplate)
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -144,7 +150,7 @@ export function useTemplates(user: User | null) {
   }
 
   // Cargar templates del usuario
-  const loadTemplates = async () => {
+  const loadTemplates = async (force = false) => {
     if (!user) {
       setError({
         type: 'AUTH',
@@ -153,30 +159,78 @@ export function useTemplates(user: User | null) {
       return
     }
 
+    // ✅ Evitar fetches simultáneos
+    if (isFetchingTemplates && !force) {
+      console.log(`📋 Ya hay un fetch en progreso, esperando...`)
+      return
+    }
+
+    // ✅ OPTIMIZACIÓN: Cache global para evitar re-fetches innecesarios
+    const now = Date.now()
+    const timeSinceLastFetch = now - lastTemplatesFetch
+    
+    if (!force && timeSinceLastFetch < TEMPLATES_CACHE_DURATION && templatesCache.length > 0) {
+      console.log(`📋 Templates en cache (${Math.round(timeSinceLastFetch / 1000)}s desde última carga)`)
+      setTemplates(templatesCache) // Asegurar que el estado local tenga el cache
+      return
+    }
+
+    isFetchingTemplates = true
     setIsLoading(true)
     clearErrors()
 
     try {
+      // ✅ OPTIMIZACIÓN: Solo traer campos necesarios para la lista
+      // NO traer template_data completo (contiene logo en base64)
       const { data, error } = await supabase
         .from("templates")
-        .select("*")
+        .select("id, user_id, name, created_at, updated_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true })
 
       if (error) throw error
 
-      setTemplates(data || [])
+      // Actualizar cache global y estado local
+      templatesCache = (data || []) as Template[]
+      lastTemplatesFetch = now
+      setTemplates(templatesCache)
+      
+      console.log(`📋 Templates cargados: ${data?.length || 0} (sin template_data - optimizado)`)
 
-      // Si hay templates, usar el primero como template actual
+      // Si hay templates, cargar el primero completo para usar como template actual
       if (data && data.length > 0) {
-        setCurrentTemplate({ ...defaultTemplate, ...data[0].template_data })
+        await loadTemplateById(data[0].id)
       }
     } catch (err: any) {
       const templateError = handleSupabaseError(err)
       setError(templateError)
       console.error('Error loading templates:', templateError)
     } finally {
+      isFetchingTemplates = false
       setIsLoading(false)
+    }
+  }
+
+  // Cargar template completo por ID (con template_data)
+  const loadTemplateById = async (id: string) => {
+    try {
+      console.log(`📥 Cargando template completo: ${id}`)
+      
+      const { data, error } = await supabase
+        .from("templates")
+        .select("*") // Aquí sí traemos todo
+        .eq("id", id)
+        .eq("user_id", user!.id)
+        .single()
+
+      if (error) throw error
+      
+      if (data && data.template_data) {
+        setCurrentTemplate({ ...defaultTemplate, ...data.template_data })
+        console.log(`✅ Template completo cargado`)
+      }
+    } catch (err: any) {
+      console.error('Error loading template by ID:', err)
     }
   }
 
@@ -221,7 +275,9 @@ export function useTemplates(user: User | null) {
 
       if (error) throw error
 
-      setTemplates((prev) => [...prev, data])
+      // Actualizar cache global y estado local
+      templatesCache = [...templatesCache, data]
+      setTemplates(templatesCache)
       return data
     } catch (err: any) {
       const templateError = handleSupabaseError(err)
@@ -279,7 +335,9 @@ export function useTemplates(user: User | null) {
 
       if (error) throw error
 
-      setTemplates((prev) => prev.map((template) => (template.id === id ? data : template)))
+      // Actualizar cache global y estado local
+      templatesCache = templatesCache.map((template) => (template.id === id ? data : template))
+      setTemplates(templatesCache)
       return data
     } catch (err: any) {
       const templateError = handleSupabaseError(err)
@@ -313,7 +371,9 @@ export function useTemplates(user: User | null) {
 
       if (error) throw error
 
-      setTemplates((prev) => prev.filter((template) => template.id !== id))
+      // Actualizar cache global y estado local
+      templatesCache = templatesCache.filter((template) => template.id !== id)
+      setTemplates(templatesCache)
     } catch (err: any) {
       const templateError = handleSupabaseError(err)
       setError(templateError)
@@ -355,9 +415,13 @@ export function useTemplates(user: User | null) {
     clearErrors() // Limpiar errores al cambiar template
   }
 
-  // Cargar templates al montar el componente
+  // ✅ Sincronizar estado local con cache al montar
+  // NO hacer fetch automático - se hará cuando el usuario vaya a la tab
   useEffect(() => {
-    loadTemplates()
+    if (templatesCache.length > 0) {
+      setTemplates(templatesCache)
+      console.log(`📋 [useEffect] Sincronizando con cache (${templatesCache.length} templates)`)
+    }
   }, [user])
 
   // Limpiar timeout al desmontar

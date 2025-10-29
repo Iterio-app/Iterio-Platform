@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
 import TemplateCustomizer from "@/components/template-customizer";
 import TemplateErrorAlert from "@/components/template-error-alert";
 import {
@@ -37,6 +38,11 @@ export default function TemplatesManager({
   templateError = null,
   onDismissError,
 }: any) {
+  // ✅ Hacer fetch cuando el componente se monta (usuario va a la tab de templates)
+  useEffect(() => {
+    fetchTemplates()
+  }, [])
+
   return (
     <div className="max-w-6xl mx-auto py-10 px-4">
       {/* Mostrar errores de template */}
@@ -45,10 +51,22 @@ export default function TemplatesManager({
       <div className="bg-white rounded-lg shadow p-6 min-h-[200px] flex flex-col gap-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Mis Templates</h2>
-          <Button disabled={templates.length >= 5} onClick={handleNewTemplate} className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-400/70 to-blue-600/70 hover:from-blue-500/80 hover:to-blue-700/80">
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Template
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchTemplates(true)}
+              disabled={loadingTemplates}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${loadingTemplates ? 'animate-spin' : ''}`} />
+              Actualizar
+            </Button>
+            <Button disabled={templates.length >= 5} onClick={handleNewTemplate} className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-400/70 to-blue-600/70 hover:from-blue-500/80 hover:to-blue-700/80">
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Template
+            </Button>
+          </div>
         </div>
         {loadingTemplates ? (
           <div className="text-center text-gray-400">Cargando templates...</div>
@@ -60,28 +78,19 @@ export default function TemplatesManager({
           <div className="grid grid-cols-1 gap-4">
             {templates.map((tpl: any) => (
               <div key={tpl.id} className="flex items-center gap-4 border border-gray-200 rounded-xl p-4 bg-white hover:shadow-md transition">
-                {/* Preview visual */}
+                {/* Preview visual - Simplificado porque no tenemos template_data en la lista */}
                 <div
                   className="w-16 h-16 rounded-lg flex items-center justify-center border border-gray-200 bg-white shadow-sm"
-                  style={{
-                    fontFamily: tpl.template_data.fontFamily || "inherit"
-                  }}
                 >
-                  {tpl.template_data.logo ? (
-                    <img src={tpl.template_data.logo} alt="Logo" className="max-h-12 max-w-12 object-contain" />
-                  ) : (
-                    <span className="text-2xl font-bold text-gray-300">?</span>
-                  )}
+                  <span className="text-2xl font-bold text-gray-400">📄</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-lg text-gray-900 truncate">
                     {tpl.name}
                   </div>
-                  {tpl.template_data.agencyName && (
-                    <div className="text-xs text-gray-500 truncate">
-                      {tpl.template_data.agencyName}
-                    </div>
-                  )}
+                  <div className="text-xs text-gray-500 truncate">
+                    Creado: {new Date(tpl.created_at).toLocaleDateString()}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button size="icon" variant="ghost" className="border border-gray-200" onClick={() => handleEditTemplate(tpl)}>

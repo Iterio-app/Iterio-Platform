@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Upload, X, ImageIcon, Plus } from "lucide-react"
+import { optimizeImage } from "@/lib/image-optimizer"
 
 interface MultiImageUploadProps {
   id: string
@@ -40,9 +41,19 @@ export default function MultiImageUpload({
         const file = files[i]
         if (file && file.type.startsWith("image/")) {
           const reader = new FileReader()
-          reader.onload = (e) => {
+          reader.onload = async (e) => {
             const imageData = e.target?.result as string
-            newImages.push(imageData)
+            
+            // Optimizar imagen antes de guardar
+            try {
+              const optimizedImage = await optimizeImage(imageData)
+              newImages.push(optimizedImage)
+            } catch (error) {
+              console.error('Error al optimizar imagen:', error)
+              // Si falla la optimización, usar imagen original
+              newImages.push(imageData)
+            }
+            
             processedCount++
 
             if (processedCount === filesToProcess) {
@@ -94,9 +105,18 @@ export default function MultiImageUpload({
         const file = imageItems[0].getAsFile()
         if (file) {
           const reader = new FileReader()
-          reader.onload = (e) => {
+          reader.onload = async (e) => {
             const imageData = e.target?.result as string
-            onImagesChange([...images, imageData])
+            
+            // Optimizar imagen antes de guardar
+            try {
+              const optimizedImage = await optimizeImage(imageData)
+              onImagesChange([...images, optimizedImage])
+            } catch (error) {
+              console.error('Error al optimizar imagen:', error)
+              // Si falla la optimización, usar imagen original
+              onImagesChange([...images, imageData])
+            }
           }
           reader.readAsDataURL(file)
         }
