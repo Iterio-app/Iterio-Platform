@@ -1,0 +1,22 @@
+# Archivos de documentación
+*.md
+!README.md
+
+# Archivos de desarrollo
+.vscode/
+.idea/
+*.log
+.DS_Store
+
+# Archivos de test
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__/
+test/
+tests/
+
+# Archivos temporales
+.env.local
+.env.*.local
