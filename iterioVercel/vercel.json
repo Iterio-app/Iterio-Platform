@@ -1,7 +1,7 @@
 {
   "functions": {
     "app/api/generate-pdf/route.ts": {
-      "memory": 1024,
+      "memory": 3008,
       "maxDuration": 60
     },
     "app/api/download-pdf/route.ts": {
@@ -9,7 +9,7 @@
       "maxDuration": 60
     },
     "app/api/save-pdf/route.ts": {
-      "memory": 1024,
+      "memory": 3008,
       "maxDuration": 60
     }
   }

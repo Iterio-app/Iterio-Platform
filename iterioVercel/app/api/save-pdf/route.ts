@@ -1,19 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Importación condicional de Puppeteer según el entorno
-let chromium: any;
-let puppeteer: any;
-
-if (process.env.VERCEL_ENV === 'production' || process.env.VERCEL_ENV === 'preview') {
-  // En producción/preview de Vercel, usar chromium optimizado
-  chromium = require('@sparticuz/chromium');
-  puppeteer = require('puppeteer-core');
-} else {
-  // En desarrollo local, usar puppeteer normal
-  puppeteer = require('puppeteer');
-}
-
 // Usa las variables de entorno correctas para backend
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -52,6 +39,19 @@ export async function POST(req: NextRequest) {
     
     const isProduction = process.env.VERCEL_ENV === 'production' || process.env.VERCEL_ENV === 'preview';
     
+    // Importación dinámica según el entorno
+    let chromium: any;
+    let puppeteer: any;
+    
+    if (isProduction) {
+      chromium = await import('@sparticuz/chromium');
+      puppeteer = await import('puppeteer-core');
+      console.log('📦 Usando @sparticuz/chromium para producción');
+    } else {
+      puppeteer = await import('puppeteer');
+      console.log('📦 Usando puppeteer para desarrollo');
+    }
+    
     // Args optimizados para reducir tiempo de launch
     const baseArgs = [
       '--no-sandbox',
@@ -74,16 +74,21 @@ export async function POST(req: NextRequest) {
         '--no-zygote',
         '--single-process', // Solo en producción (Linux)
       ];
-      browser = await puppeteer.launch({
-        args: [...chromium.args, ...productionArgs],
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
+      
+      // Obtener el path del ejecutable de chromium
+      const executablePath = await chromium.default.executablePath();
+      console.log('🔍 Chromium executable path:', executablePath);
+      
+      browser = await puppeteer.default.launch({
+        args: productionArgs,
+        defaultViewport: chromium.default.defaultViewport,
+        executablePath: executablePath,
+        headless: true,
       });
     } else {
       // Configuración para desarrollo local (Windows/Mac)
       // Sin --single-process porque causa problemas en Windows
-      browser = await puppeteer.launch({ 
+      browser = await puppeteer.default.launch({ 
         args: baseArgs,
         headless: true
       });
