@@ -37,7 +37,7 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
-    "@sparticuz/chromium": "132.0.0",
+    "@sparticuz/chromium": "123.0.1",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.51.0",
     "child_process": "latest",
@@ -53,7 +53,7 @@
     "lucide-react": "^0.454.0",
     "next": "^14.2.30",
     "next-themes": "^0.4.4",
-    "puppeteer-core": "24.15.0",
+    "puppeteer-core": "22.12.1",
     "react": "^18",
     "react-day-picker": "8.10.1",
     "react-dom": "^18",
@@ -73,7 +73,7 @@
     "@types/react-dom": "^18.3.7",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.5",
-    "puppeteer": "24.15.0",
+    "puppeteer": "22.12.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
   }

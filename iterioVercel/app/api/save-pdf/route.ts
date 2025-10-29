@@ -68,26 +68,39 @@ export async function POST(req: NextRequest) {
     
     if (isProduction) {
       // Configuración para Vercel (producción/preview) - Linux
-      // Agregar flags adicionales que funcionan en Linux
+      console.log('🔧 Configurando Chromium para producción...');
+      
+      // Obtener el path del ejecutable de chromium con manejo de errores
+      let executablePath;
+      try {
+        executablePath = await chromium.default.executablePath();
+        console.log('✅ Chromium executable path:', executablePath);
+      } catch (error: any) {
+        console.error('❌ Error obteniendo executablePath:', error);
+        console.error('Error details:', error);
+        throw new Error(`No se pudo obtener el ejecutable de Chromium: ${error?.message || 'Unknown error'}`);
+      }
+      
       const productionArgs = [
         ...baseArgs,
         '--no-zygote',
-        '--single-process', // Solo en producción (Linux)
+        '--single-process',
+        '--disable-dev-shm-usage',
+        '--disable-setuid-sandbox',
       ];
       
-      // Obtener el path del ejecutable de chromium
-      const executablePath = await chromium.default.executablePath();
-      console.log('🔍 Chromium executable path:', executablePath);
+      console.log('🚀 Lanzando Chromium con args:', productionArgs);
       
       browser = await puppeteer.default.launch({
         args: productionArgs,
         defaultViewport: chromium.default.defaultViewport,
         executablePath: executablePath,
         headless: true,
+        ignoreHTTPSErrors: true,
       });
     } else {
       // Configuración para desarrollo local (Windows/Mac)
-      // Sin --single-process porque causa problemas en Windows
+      console.log('🔧 Configurando Puppeteer para desarrollo local...');
       browser = await puppeteer.default.launch({ 
         args: baseArgs,
         headless: true
