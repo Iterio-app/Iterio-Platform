@@ -69,38 +69,44 @@ export async function POST(req: NextRequest) {
       // Configuración para Vercel con Chromium desde chrome-aws-lambda layer
       console.log('🔧 Configurando Chromium para producción con Vercel native support...');
       
-      // Usar chrome-aws-lambda que viene preinstalado en Vercel
+      // Usar @sparticuz/chromium-min (versión sin brotli, optimizada)
       let chromium: any;
       try {
-        // @ts-ignore - chrome-aws-lambda no tiene definiciones de tipos
-        chromium = await import('chrome-aws-lambda');
-        console.log('✅ chrome-aws-lambda importado correctamente');
+        // @ts-ignore - chromium-min no tiene definiciones de tipos completas
+        chromium = await import('@sparticuz/chromium-min');
+        console.log('✅ @sparticuz/chromium-min importado correctamente');
       } catch (error: any) {
-        console.error('❌ Error importando chrome-aws-lambda:', error);
-        throw new Error('chrome-aws-lambda no disponible en Vercel');
+        console.error('❌ Error importando @sparticuz/chromium-min:', error);
+        throw new Error('@sparticuz/chromium-min no disponible');
       }
       
-      // Obtener args de chromium de forma segura
-      const chromiumArgs = Array.isArray(chromium.args) ? chromium.args : [];
-      console.log('📋 Chromium args:', chromiumArgs);
+      // chromium-min usa .default para acceder al módulo
+      const chromiumDefault = chromium.default || chromium;
+      console.log('📋 Chromium module loaded');
       
       const productionArgs = [
-        ...chromiumArgs,
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
         '--no-zygote',
         '--single-process',
+        '--disable-background-networking',
+        '--disable-default-apps',
       ];
       
       console.log('🚀 Lanzando Chromium con', productionArgs.length, 'args...');
       
       try {
+        const executablePath = await chromiumDefault.executablePath();
+        console.log('🔍 Executable path:', executablePath);
+        
         browser = await puppeteer.default.launch({
           args: productionArgs,
-          executablePath: await chromium.executablePath,
-          headless: chromium.headless,
+          executablePath: executablePath,
+          headless: true,
           ignoreHTTPSErrors: true,
           defaultViewport: {
             width: 1920,

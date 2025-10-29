@@ -11,8 +11,8 @@ const nextConfig = {
   },
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Excluir chrome-aws-lambda del bundle de webpack
-      config.externals = [...(config.externals || []), 'chrome-aws-lambda'];
+      // Excluir @sparticuz/chromium-min del bundle de webpack
+      config.externals = [...(config.externals || []), '@sparticuz/chromium-min'];
     }
     return config;
   },
