@@ -80,14 +80,21 @@ export async function POST(req: NextRequest) {
         throw new Error('chrome-aws-lambda no disponible en Vercel');
       }
       
+      // Obtener args de chromium de forma segura
+      const chromiumArgs = Array.isArray(chromium.args) ? chromium.args : [];
+      console.log('📋 Chromium args:', chromiumArgs);
+      
       const productionArgs = [
-        ...baseArgs,
-        ...chromium.args,
+        ...chromiumArgs,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
         '--no-zygote',
         '--single-process',
       ];
       
-      console.log('🚀 Lanzando Chromium...');
+      console.log('🚀 Lanzando Chromium con', productionArgs.length, 'args...');
       
       try {
         browser = await puppeteer.default.launch({
@@ -103,6 +110,7 @@ export async function POST(req: NextRequest) {
         console.log('✅ Browser lanzado exitosamente');
       } catch (error: any) {
         console.error('❌ Error lanzando browser:', error);
+        console.error('Stack trace:', error.stack);
         throw new Error(`Error al lanzar Chromium: ${error?.message || 'Unknown error'}`);
       }
     } else {
