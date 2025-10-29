@@ -38,15 +38,14 @@ export async function POST(req: NextRequest) {
     const launchStart = Date.now();
     
     const isProduction = process.env.VERCEL_ENV === 'production' || process.env.VERCEL_ENV === 'preview';
+    console.log('🔍 Entorno detectado:', isProduction ? 'PRODUCCIÓN' : 'DESARROLLO');
     
     // Importación dinámica según el entorno
-    let chromium: any;
     let puppeteer: any;
     
     if (isProduction) {
-      chromium = await import('@sparticuz/chromium');
       puppeteer = await import('puppeteer-core');
-      console.log('📦 Usando @sparticuz/chromium para producción');
+      console.log('📦 Usando puppeteer-core para producción');
     } else {
       puppeteer = await import('puppeteer');
       console.log('📦 Usando puppeteer para desarrollo');
@@ -67,37 +66,45 @@ export async function POST(req: NextRequest) {
     ];
     
     if (isProduction) {
-      // Configuración para Vercel (producción/preview) - Linux
-      console.log('🔧 Configurando Chromium para producción...');
+      // Configuración para Vercel con Chromium desde chrome-aws-lambda layer
+      console.log('🔧 Configurando Chromium para producción con Vercel native support...');
       
-      // Obtener el path del ejecutable de chromium con manejo de errores
-      let executablePath;
+      // Usar chrome-aws-lambda que viene preinstalado en Vercel
+      let chromium: any;
       try {
-        executablePath = await chromium.default.executablePath();
-        console.log('✅ Chromium executable path:', executablePath);
+        // @ts-ignore - chrome-aws-lambda no tiene definiciones de tipos
+        chromium = await import('chrome-aws-lambda');
+        console.log('✅ chrome-aws-lambda importado correctamente');
       } catch (error: any) {
-        console.error('❌ Error obteniendo executablePath:', error);
-        console.error('Error details:', error);
-        throw new Error(`No se pudo obtener el ejecutable de Chromium: ${error?.message || 'Unknown error'}`);
+        console.error('❌ Error importando chrome-aws-lambda:', error);
+        throw new Error('chrome-aws-lambda no disponible en Vercel');
       }
       
       const productionArgs = [
         ...baseArgs,
+        ...chromium.args,
         '--no-zygote',
         '--single-process',
-        '--disable-dev-shm-usage',
-        '--disable-setuid-sandbox',
       ];
       
-      console.log('🚀 Lanzando Chromium con args:', productionArgs);
+      console.log('🚀 Lanzando Chromium...');
       
-      browser = await puppeteer.default.launch({
-        args: productionArgs,
-        defaultViewport: chromium.default.defaultViewport,
-        executablePath: executablePath,
-        headless: true,
-        ignoreHTTPSErrors: true,
-      });
+      try {
+        browser = await puppeteer.default.launch({
+          args: productionArgs,
+          executablePath: await chromium.executablePath,
+          headless: chromium.headless,
+          ignoreHTTPSErrors: true,
+          defaultViewport: {
+            width: 1920,
+            height: 1080,
+          },
+        });
+        console.log('✅ Browser lanzado exitosamente');
+      } catch (error: any) {
+        console.error('❌ Error lanzando browser:', error);
+        throw new Error(`Error al lanzar Chromium: ${error?.message || 'Unknown error'}`);
+      }
     } else {
       // Configuración para desarrollo local (Windows/Mac)
       console.log('🔧 Configurando Puppeteer para desarrollo local...');

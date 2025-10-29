@@ -115,16 +115,16 @@ export default function TemplatesManager({
               id="template-name"
               type="text"
               className={`w-full border rounded px-3 py-2 text-base ${
-                validationErrors.some(e => e.field === 'name') ? 'border-red-500' : ''
+                validationErrors.some((e: any) => e.field === 'name') ? 'border-red-500' : ''
               }`}
               placeholder="Ej: Viajes a Europa"
               value={templateForm?.name || ''}
               onChange={e => setTemplateForm({ ...templateForm, name: e.target.value })}
               maxLength={50}
             />
-            {validationErrors.some(e => e.field === 'name') && (
+            {validationErrors.some((e: any) => e.field === 'name') && (
               <p className="text-red-500 text-sm mt-1">
-                {validationErrors.find(e => e.field === 'name')?.message}
+                {validationErrors.find((e: any) => e.field === 'name')?.message}
               </p>
             )}
           </div>
