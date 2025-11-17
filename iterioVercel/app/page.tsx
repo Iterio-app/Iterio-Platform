@@ -26,6 +26,7 @@ import UserMenu from "@/components/auth/user-menu"
 import { supabase } from "@/lib/supabase"
 import { useTemplates } from "@/hooks/use-templates"
 import { useQuotes } from "@/hooks/use-quotes"
+import { useGeneratePDF } from "@/hooks/useGeneratePDF"
 import type { Quote } from "@/lib/supabase"
 
 // Definir tipos locales para evitar problemas de importación
@@ -1019,12 +1020,15 @@ export default function TravelQuoteGenerator() {
   };
 
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<string>('');
+  const { generatePDF } = useGeneratePDF();
 
   const handleDownloadPdf = async () => {
     if (isDownloadingPdf) return;
     setIsDownloadingPdf(true);
+    setPdfProgress('Iniciando...');
     
-    console.log('\ud83d\udce5 [CLIENT] Iniciando descarga de PDF...');
+    console.log('📥 [CLIENT] Iniciando descarga de PDF con nuevo flujo híbrido...');
     const clientStartTime = Date.now();
     
     try {
@@ -1035,22 +1039,21 @@ export default function TravelQuoteGenerator() {
       const pad = (n: number) => n.toString().padStart(2, '0');
       const fechaStr = `${pad(hoy.getDate())}-${pad(hoy.getMonth() + 1)}-${hoy.getFullYear()}`;
       const nombreArchivo = `${ciudad}_${año}_${fechaStr}`.replace(/\s+/g, '_');
-      console.log('\ud83d\udcdd [CLIENT] Nombre de archivo:', nombreArchivo);
+      console.log('📝 [CLIENT] Nombre de archivo:', nombreArchivo);
       // --- Fin nombre personalizado ---
       
       // Verificar si existe un PDF guardado y si realmente existe en el bucket
-      // Si pdfUrl es null, significa que se gener\u00f3 una nueva vista previa y hay que regenerar
       if (isSupabasePdfUrl(pdfUrl)) {
-        console.log('\ud83d\udd0d [CLIENT] PDF URL encontrada en DB, verificando si existe en bucket:', pdfUrl);
+        console.log('🔍 [CLIENT] PDF URL encontrada en DB, verificando si existe en bucket:', pdfUrl);
         try {
           const response = await fetch(pdfUrl!, { mode: 'cors', method: 'HEAD' });
           if (response.ok) {
-            console.log('\u2705 [CLIENT] PDF existe en bucket y no hay cambios, descargando...');
-            // Descargar el PDF como blob
+            console.log('✅ [CLIENT] PDF existe en bucket y no hay cambios, descargando...');
+            setPdfProgress('Descargando PDF existente...');
             const downloadResponse = await fetch(pdfUrl!, { mode: 'cors' });
             const blob = await downloadResponse.blob();
             
-            // Verificar que sea un PDF v\u00e1lido (no HTML de error)
+            // Verificar que sea un PDF válido
             if (blob.type === 'application/pdf' || blob.type === 'application/octet-stream') {
               const url = window.URL.createObjectURL(blob);
               const link = document.createElement('a');
@@ -1060,24 +1063,26 @@ export default function TravelQuoteGenerator() {
               link.click();
               document.body.removeChild(link);
               window.URL.revokeObjectURL(url);
-              console.log('\u2705 [CLIENT] PDF descargado exitosamente');
+              console.log('✅ [CLIENT] PDF descargado exitosamente');
+              setPdfProgress('¡Descarga completa!');
               return;
             } else {
-              console.warn('\u26a0\ufe0f [CLIENT] El archivo no es un PDF v\u00e1lido, regenerando...');
+              console.warn('⚠️ [CLIENT] El archivo no es un PDF válido, regenerando...');
             }
           } else {
-            console.warn('\u26a0\ufe0f [CLIENT] PDF no existe en bucket (status:', response.status, '), regenerando...');
+            console.warn('⚠️ [CLIENT] PDF no existe en bucket, regenerando...');
           }
         } catch (error) {
-          console.warn('\u26a0\ufe0f [CLIENT] Error al verificar PDF existente:', error, '- Regenerando...');
+          console.warn('⚠️ [CLIENT] Error al verificar PDF existente:', error);
         }
       }
       
-      console.log('\ud83d\udd04 [CLIENT] Generando nuevo PDF...');
+      console.log('🔄 [CLIENT] Generando nuevo PDF...');
+      setPdfProgress('Obteniendo vista previa...');
       
-      // Obtener HTML seguro del iframe
+      // Obtener HTML del iframe
       const iframe = document.getElementById('pdf-preview-iframe') as HTMLIFrameElement | null;
-      console.log('\ud83d\uddbc\ufe0f [CLIENT] Iframe encontrado:', !!iframe);
+      console.log('🖼️ [CLIENT] Iframe encontrado:', !!iframe);
       
       const html =
         iframe && iframe.contentDocument && iframe.contentDocument.documentElement
@@ -1088,78 +1093,129 @@ export default function TravelQuoteGenerator() {
         console.error('❌ [CLIENT] No se pudo obtener HTML del iframe');
         alert('No se pudo obtener el HTML de la vista previa.\n\n💡 Sugerencia: Genera la vista previa primero haciendo click en "Generar Vista Previa".');
         setIsDownloadingPdf(false);
+        setPdfProgress('');
         return;
       }
       
-      // Validar que el HTML no esté vacío o sea muy pequeño
       if (html.length < 1000) {
-        console.error('❌ [CLIENT] HTML demasiado pequeño, posiblemente vacío');
-        alert('La vista previa parece estar vacía.\n\n💡 Sugerencia: Genera la vista previa primero haciendo click en "Generar Vista Previa".');
+        console.error('❌ [CLIENT] HTML demasiado pequeño');
+        alert('La vista previa parece estar vacía.\n\n💡 Sugerencia: Genera la vista previa primero.');
         setIsDownloadingPdf(false);
+        setPdfProgress('');
         return;
       }
       
-      console.log('\u2705 [CLIENT] HTML obtenido del iframe, longitud:', html.length);
-      console.log('\ud83d\ude80 [CLIENT] Enviando request a /api/save-pdf...');
-      console.log('\ud83c\udfaf [CLIENT] Quote ID:', currentQuoteId);
+      console.log('✅ [CLIENT] HTML obtenido, longitud:', html.length);
       
-      const fetchStart = Date.now();
+      // NUEVO FLUJO: Generar PDF en el cliente con html2pdf.js
+      setPdfProgress('Generando PDF en el navegador...');
+      console.log('🎨 [CLIENT] Generando PDF con html2pdf.js...');
+      const pdfGenerateStart = Date.now();
+      
+      const pdfBlob = await generatePDF(html, {
+        filename: `${nombreArchivo}.pdf`,
+        onProgress: (stage) => {
+          console.log('📊 [CLIENT] Progreso:', stage);
+          setPdfProgress(stage);
+        },
+      });
+      
+      const pdfGenerateTime = Date.now() - pdfGenerateStart;
+      console.log('⏱️ [CLIENT] PDF generado en:', pdfGenerateTime, 'ms');
+      
+      if (!pdfBlob) {
+        console.error('❌ [CLIENT] Error al generar PDF');
+        alert('Error al generar el PDF. Por favor, intenta nuevamente.');
+        setIsDownloadingPdf(false);
+        setPdfProgress('');
+        return;
+      }
+      
+      console.log('✅ [CLIENT] PDF generado, tamaño:', pdfBlob.size, 'bytes');
+      
+      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        const debugUrl = window.URL.createObjectURL(pdfBlob);
+        window.open(debugUrl, '_blank');
+        setTimeout(() => window.URL.revokeObjectURL(debugUrl), 10000);
+      }
+      
+      // Convertir blob a base64 para enviar al servidor
+      setPdfProgress('Preparando para subir...');
+      const reader = new FileReader();
+      const pdfBase64 = await new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(pdfBlob);
+      });
+      
+      console.log('✅ [CLIENT] PDF convertido a base64, longitud:', pdfBase64.length);
+      console.log('📄 [CLIENT] Base64 header:', pdfBase64.slice(0, 80));
+      
+      // Subir a Supabase
+      setPdfProgress('Subiendo a Supabase...');
+      console.log('☁️ [CLIENT] Subiendo PDF a Supabase...');
+      const uploadStart = Date.now();
+      
       const response = await fetch('/api/save-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           quoteId: currentQuoteId,
-          html,
+          pdfBase64,
         }),
       });
       
-      const fetchTime = Date.now() - fetchStart;
-      console.log('\u23f1\ufe0f [CLIENT] Request completado en:', fetchTime, 'ms');
-      console.log('\ud83d\udcca [CLIENT] Response status:', response.status, response.statusText);
+      const uploadTime = Date.now() - uploadStart;
+      console.log('⏱️ [CLIENT] Upload completado en:', uploadTime, 'ms');
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('\u274c [CLIENT] Error en response:', errorText);
-        alert(`Error al generar el PDF: ${response.status} ${response.statusText}`);
+        console.error('❌ [CLIENT] Error al subir:', errorText);
+        alert(`Error al guardar el PDF: ${response.status} ${response.statusText}`);
         setIsDownloadingPdf(false);
+        setPdfProgress('');
         return;
       }
       
       const data = await response.json();
-      console.log('\ud83d\udcca [CLIENT] Response data:', data);
+      console.log('📊 [CLIENT] Response:', data);
       
-      // Mostrar timings del servidor si están disponibles
       if (data.timings) {
-        console.log('\u23f1\ufe0f [SERVER TIMINGS]:', data.timings);
+        console.log('⏱️ [SERVER TIMINGS]:', data.timings);
         console.table(data.timings);
       }
+      
       if (data.success && data.pdfUrl) {
-        console.log('\u2705 [CLIENT] PDF generado exitosamente');
-        console.log('\ud83d\udd17 [CLIENT] PDF URL:', data.pdfUrl);
+        console.log('✅ [CLIENT] PDF guardado exitosamente');
+        console.log('🔗 [CLIENT] PDF URL:', data.pdfUrl);
         
         setPdfUrl(data.pdfUrl);
-        console.log('\u2705 [CLIENT] PDF URL actualizada');
         
-        // Actualizar estado de la cotización a 'completed' cuando se guarda el PDF
+        // Actualizar estado de la cotización
         if (currentQuoteId) {
-          console.log('\ud83d\udcbe [CLIENT] Actualizando estado de cotización...');
+          console.log('💾 [CLIENT] Actualizando cotización...');
           await updateQuote(currentQuoteId, {
             status: "completed",
             pdf_url: data.pdfUrl,
           });
-          console.log('\u2705 [CLIENT] Cotización actualizada');
+          console.log('✅ [CLIENT] Cotización actualizada');
         }
         
-        // Descargar el PDF generado como blob
-        console.log('\ud83d\udce5 [CLIENT] Descargando PDF desde Supabase...');
-        const downloadStart = Date.now();
-        const response = await fetch(data.pdfUrl, { mode: 'cors' });
-        const blob = await response.blob();
-        const downloadTime = Date.now() - downloadStart;
-        console.log('\u23f1\ufe0f [CLIENT] Descarga completada en:', downloadTime, 'ms');
-        console.log('\ud83d\udcca [CLIENT] Tamaño del PDF:', blob.size, 'bytes');
+        // Descargar el PDF - IMPORTANTE: Crear nuevo blob desde base64 para evitar que esté vacío
+        setPdfProgress('Descargando...');
+        console.log('📥 [CLIENT] Descargando PDF...');
         
-        const url = window.URL.createObjectURL(blob);
+        // Convertir base64 de vuelta a blob para descargar
+        const binaryString = atob(pdfBase64.split(',')[1]); // Quitar el prefijo "data:application/pdf;base64,"
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const downloadBlob = new Blob([bytes], { type: 'application/pdf' });
+        
+        console.log('✅ [CLIENT] Blob recreado para descarga, tamaño:', downloadBlob.size, 'bytes');
+        
+        const url = window.URL.createObjectURL(downloadBlob);
         const link = document.createElement('a');
         link.href = url;
         link.download = `${nombreArchivo}.pdf`;
@@ -1168,14 +1224,22 @@ export default function TravelQuoteGenerator() {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
         
+        console.log('✅ [CLIENT] PDF descargado exitosamente');
+        
         const totalTime = Date.now() - clientStartTime;
-        console.log('\ud83c\udf89 [CLIENT] Proceso completo en:', totalTime, 'ms');
+        console.log('🎉 [CLIENT] Proceso completo en:', totalTime, 'ms');
+        console.log('📊 [CLIENT] Desglose: Generación:', pdfGenerateTime, 'ms | Upload:', uploadTime, 'ms');
+        setPdfProgress('¡Completado!');
       } else {
-        console.error('\u274c [CLIENT] Error en la respuesta:', data);
-        alert('Error al generar el PDF.');
+        console.error('❌ [CLIENT] Error en respuesta:', data);
+        alert('Error al guardar el PDF.');
       }
+    } catch (error: any) {
+      console.error('❌ [CLIENT] Error crítico:', error);
+      alert(`Error: ${error.message || 'Error desconocido'}`);
     } finally {
       setIsDownloadingPdf(false);
+      setTimeout(() => setPdfProgress(''), 2000);
     }
   };
 

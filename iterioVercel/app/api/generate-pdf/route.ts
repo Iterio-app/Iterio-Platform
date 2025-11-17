@@ -367,6 +367,7 @@ body {
   font-size: 12px;
   border-top: 1px solid #eee;
   padding-top: 15px;
+  padding-bottom: 25px; /* Espacio extra para que no se corte el texto al final de la página */
 }
 
 .footer-item {
