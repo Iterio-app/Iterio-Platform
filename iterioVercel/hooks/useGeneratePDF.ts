@@ -53,7 +53,7 @@ export function useGeneratePDF() {
 
       // Configuración optimizada para html2pdf
       const opt = {
-        margin: [10, 5, 10, 5], // [top, right, bottom, left] en mm
+        margin: [8, 5, 8, 5], // [top, right, bottom, left] en mm
         filename,
         image: { 
           type: 'jpeg', 

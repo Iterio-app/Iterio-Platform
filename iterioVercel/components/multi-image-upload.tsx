@@ -23,7 +23,7 @@ export default function MultiImageUpload({
   images,
   onImagesChange,
   className = "",
-  maxImages = 5,
+  maxImages = 6,
 }: MultiImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)

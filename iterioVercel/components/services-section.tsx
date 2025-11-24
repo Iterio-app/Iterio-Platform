@@ -179,7 +179,7 @@ export default function ServicesSection({ services, onChange, selectedCurrency }
                 label="Imágenes del servicio"
                 images={service.imagenes}
                 onImagesChange={(images) => updateService(service.id, "imagenes", images)}
-                maxImages={4}
+                maxImages={6}
               />
             </div>
           ))

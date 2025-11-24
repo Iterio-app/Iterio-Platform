@@ -247,7 +247,7 @@ export default function CruiseSection({ cruises, onChange, selectedCurrency, onM
                 label="Imágenes del crucero"
                 images={cruise.imagenes}
                 onImagesChange={(images) => updateCruise(cruise.id, "imagenes", images)}
-                maxImages={4}
+                maxImages={6}
               />
             </div>
           ))

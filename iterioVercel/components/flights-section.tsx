@@ -276,7 +276,7 @@ export default function FlightsSection({ flights, onChange, clientData, selected
                 label="Imágenes del vuelo"
                 images={flight.imagenes}
                 onImagesChange={(images) => updateFlight(flight.id, "imagenes", images)}
-                maxImages={4}
+                maxImages={6}
               />
 
               {/* Tipo de Tarifa */}

@@ -24,6 +24,7 @@ interface SummaryData {
   mostrarNotaTarifas: boolean
   mostrarNotaPrecioTotal: boolean
   currency?: string
+  totalOverride?: number
 }
 
 interface Flight {
@@ -481,6 +482,43 @@ export default function SummarySection({
                 ))}
               </ul>
             </div>
+            {Object.keys(allTotals).length === 1 && (
+              <div className="mt-3">
+                <Label htmlFor="totalOverride" className="text-xs font-medium">
+                  Total a mostrar en el PDF
+                </Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    id="totalOverride"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={
+                      summaryData.totalOverride !== undefined && summaryData.totalOverride !== null
+                        ? summaryData.totalOverride
+                        : ""
+                    }
+                    onChange={(e) => {
+                      if (onSummaryDataChange) {
+                        const value = e.target.value
+                        if (value === "") {
+                          onSummaryDataChange({ totalOverride: undefined })
+                        } else {
+                          const num = parseFloat(value.replace(",", "."))
+                          if (!isNaN(num)) {
+                            onSummaryDataChange({ totalOverride: num })
+                          }
+                        }
+                      }
+                    }}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Si lo dejas vacío, se usa la suma automática de los servicios.
+                </p>
+              </div>
+            )}
             
             {/* Checkbox para mostrar/ocultar total en PDF */}
             <div className="mt-4 p-3 bg-white rounded border">

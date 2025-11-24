@@ -385,7 +385,7 @@ export const SummaryContent: React.FC<FormDataProps> = ({ formData }) => {
                                   <span className="font-medium">• Régimen de comidas:</span> {getRegimenLabel(hab.regimen)}
                                 </div>
                               )}
-                              {aloj.mostrarPrecio && hab.precio && (
+                              {(hab.mostrarPrecio ?? true) && hab.precio && (
                                 <div className="text-xs text-gray-500">
                                   <span className="font-medium">• Precio total:</span> {getCurrencySymbol(aloj.useCustomCurrency ? aloj.currency : formData.selectedCurrency)} {Number(hab.precio).toFixed(2)}
                                 </div>

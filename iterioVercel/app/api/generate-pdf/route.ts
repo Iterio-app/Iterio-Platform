@@ -100,13 +100,35 @@ function generatePdfHtml(data: any, template: any): string {
   const renderImageGallery = (images: string[], altText: string) => {
     if (!images || images.length === 0) return ""
 
-    // Cambio: Mostrar imágenes una debajo de la otra en lugar de en grid
-    return `
+    // Siempre limitar a un máximo de 6 imágenes
+    const limitedImages = images.slice(0, 6)
+    const isFlight = altText.startsWith("Vuelo")
+
+    // Para vuelos mantenemos el layout vertical actual (una debajo de la otra)
+    if (isFlight) {
+      return `
       <div class="image-gallery-vertical">
-        ${images
+        ${limitedImages
           .map(
             (image, index) => `
           <img src="${image}" alt="${altText} ${index + 1}" class="gallery-image-vertical">
+        `,
+          )
+          .join("")}
+      </div>
+    `
+    }
+
+    // Para el resto de las secciones usamos una grilla con máximo 3 columnas y 2 filas
+    const count = limitedImages.length
+    const layoutClass = `image-gallery image-gallery--${count}`
+
+    return `
+      <div class="${layoutClass}">
+        ${limitedImages
+          .map(
+            (image, index) => `
+          <img src="${image}" alt="${altText} ${index + 1}" class="gallery-image">
         `,
           )
           .join("")}
@@ -257,7 +279,6 @@ body {
   max-width: 100%;
   height: auto;
   max-height: 200px;
-  object-fit: contain;
   border-radius: 4px;
   margin-bottom: 10px;
   display: block;
@@ -267,18 +288,39 @@ body {
 
 .image-gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px;
   margin-bottom: 10px;
 }
 
+.image-gallery--1 {
+  grid-template-columns: 1fr;
+}
+
+.image-gallery--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.image-gallery--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.image-gallery--4 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.image-gallery--5,
+.image-gallery--6 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .gallery-image {
-  width: 100%;
+  max-width: 100%;
   height: auto;
-  max-height: 150px;
-  object-fit: contain;
+  max-height: 180px;
   border-radius: 4px;
   border: 1px solid #e2e8f0;
+  display: block;
+  margin: 0 auto;
 }
 
 .image-gallery-vertical {
@@ -289,12 +331,13 @@ body {
 }
 
 .gallery-image-vertical {
-  width: 100%;
+  max-width: 100%;
   height: auto;
   max-height: 200px;
-  object-fit: contain;
   border-radius: 4px;
   border: 1px solid #e2e8f0;
+  display: block;
+  margin: 0 auto;
 }
 
 .item-details {
@@ -815,7 +858,7 @@ body {
   ? `
   <div style="display: flex; gap: 24px; align-items: stretch; margin-bottom: 16px;">
     <div style="flex: 1; max-width: 50%; display: flex; align-items: center; justify-content: center;">
-      <img src="${hotel.imagenes[0]}" alt="Hotel" style="max-width: 100%; max-height: 180px; border-radius: 8px; border: 1px solid #e2e8f0; object-fit: contain; background: #f8f9fa;" />
+      <img src="${hotel.imagenes[0]}" alt="Hotel" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8f9fa;" />
     </div>
     <div style="flex: 1; max-width: 50%; display: flex; flex-direction: column; justify-content: space-between; height: 180px; gap: 0;">
       ${hotel.ciudad ? `<div class="accommodation-city" style="color: #222; font-size: 14px; margin-bottom: 0;"><strong style="color: ${template.primaryColor};">Ciudad:</strong> ${hotel.ciudad}</div>` : ""}
@@ -853,7 +896,7 @@ body {
                         <strong>Régimen de comidas:</strong>
                         <span>${getRegimenLabel(habitacion.regimen)}</span>
                       </div>
-                      ${hotel.mostrarPrecio ? `<div>
+                      ${(habitacion.mostrarPrecio ?? true) ? `<div>
                         <strong>Precio total:</strong>
                         <span style="color: ${template.primaryColor}; font-weight: bold;">${formatCurrency(Number.parseFloat(habitacion.precio) || 0, hotel.useCustomCurrency && hotel.currency ? hotel.currency : data.totales?.currency || "USD")}</span>
                       </div>` : ""}
@@ -1003,7 +1046,6 @@ body {
       ${data.totales?.mostrar_nota_precio_total ? `
       <div style="background: #e0e7ff; color: #1e40af; border-radius: 6px; padding: 10px 16px; margin: 10px auto 0 auto; max-width: 500px; font-size: 14px; border: 1px solid #2563eb; text-align: center;">
         <strong>Nota:</strong> El precio total no incluye los vuelos. Si la tarifa no está discriminada en la cotización, consúltela con su agente.
-      </div>
       ` : ""}
     </div>
     `
@@ -1014,8 +1056,14 @@ body {
       <div style="text-align: center; padding: 15px;">
         <div style="font-size: 32px; font-weight: bold; color: ${template.primaryColor};">
           ${(() => {
-            const [moneda, total] = Object.entries(data.totalesPorMoneda).find(([_, t]) => Number(t) > 0) || [data.totales?.currency || "USD", data.totales?.total || 0];
-            return `${moneda} ${Number(total).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const override = data.totales && typeof data.totales.totalOverride === "number" && !isNaN(data.totales.totalOverride)
+              ? data.totales.totalOverride
+              : null;
+            const [moneda, totalCalc] =
+              Object.entries(data.totalesPorMoneda).find(([_, t]) => Number(t) > 0) ||
+              [data.totales?.currency || "USD", data.totales?.total || 0];
+            const totalToShow = override !== null ? override : Number(totalCalc);
+            return `${moneda} ${Number(totalToShow).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
           })()}
         </div>
       </div>

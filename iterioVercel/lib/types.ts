@@ -40,6 +40,7 @@ export interface FormDataForSidebar {
     subtotalCruceros: number;
     subtotal: number;
     total: number;
+    totalOverride?: number;
     observaciones: string;
     mostrarTotal: boolean;
     mostrarCantidadPasajeros?: boolean;

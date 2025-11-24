@@ -215,7 +215,7 @@ export default function TransfersSection({ transfers, onChange, selectedCurrency
                 label="Imágenes del traslado"
                 images={transfer.imagenes}
                 onImagesChange={(images) => updateTransfer(transfer.id, "imagenes", images)}
-                maxImages={4}
+                maxImages={6}
               />
 
               <div className="space-y-2">

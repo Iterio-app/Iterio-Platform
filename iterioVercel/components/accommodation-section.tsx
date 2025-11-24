@@ -15,6 +15,7 @@ interface RoomOption {
   tipoHabitacion: string
   regimen: "sin_desayuno" | "desayuno" | "media_pension" | "pension_completa" | "all_inclusive"
   precio: string
+  mostrarPrecio?: boolean
   regimenTouched?: boolean
 }
 
@@ -65,6 +66,7 @@ export default function AccommodationSection({ accommodations, onChange, selecte
           tipoHabitacion: "",
           regimen: "sin_desayuno",
           precio: "",
+          mostrarPrecio: true,
         },
       ],
       precioTotal: 0,
@@ -153,6 +155,7 @@ export default function AccommodationSection({ accommodations, onChange, selecte
           tipoHabitacion: "",
           regimen: "sin_desayuno",
           precio: "",
+          mostrarPrecio: true,
         })
       }
     }
@@ -257,7 +260,7 @@ export default function AccommodationSection({ accommodations, onChange, selecte
                 label="Imágenes del alojamiento"
                 images={accommodation.imagenes}
                 onImagesChange={(images) => updateAccommodation(accommodation.id, "imagenes", images)}
-                maxImages={4}
+                maxImages={6}
               />
 
               <div className="grid grid-cols-2 gap-4">
@@ -395,6 +398,23 @@ export default function AccommodationSection({ accommodations, onChange, selecte
                         Si el régimen de desayuno es "Sin desayuno" debe seleccionar otro y luego volver a "Sin desayuno" para que desaparezca la alerta en el Panel de Asistencia.
                       </div>
                     )}
+                    <div className="mt-3 flex items-center gap-2">
+                      <input
+                        id={`mostrarPrecioHab-${accommodation.id}-${habitacion.id}`}
+                        type="checkbox"
+                        checked={habitacion.mostrarPrecio ?? true}
+                        onChange={(e) =>
+                          updateHabitacion(accommodation.id, habitacion.id, { mostrarPrecio: e.target.checked })
+                        }
+                        className="accent-blue-600 h-4 w-4"
+                      />
+                      <Label
+                        htmlFor={`mostrarPrecioHab-${accommodation.id}-${habitacion.id}`}
+                        className="text-xs"
+                      >
+                        Mostrar precio de esta habitación en el PDF
+                      </Label>
+                    </div>
                   </div>
                 ))}
               </div>
