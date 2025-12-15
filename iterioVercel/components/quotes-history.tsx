@@ -491,41 +491,41 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
           <div className="space-y-3">
             {filteredQuotes.map((quote) => {
               // Agrupar totales por moneda
-              const accommodationTotals = groupAmountsByCurrency(quote.accommodations_data || [], quote.summary_data?.currency || "USD", "precioTotal");
-              const transferTotals = groupAmountsByCurrency(quote.transfers_data || [], quote.summary_data?.currency || "USD", "precio");
-              const serviceTotals = groupAmountsByCurrency(quote.services_data || [], quote.summary_data?.currency || "USD", "precio");
-              const cruiseTotals = groupAmountsByCurrency(quote.cruises_data || [], quote.summary_data?.currency || "USD", "precio");
-              const allTotals = { ...accommodationTotals };
-              for (const [currency, amount] of Object.entries(transferTotals)) {
-                allTotals[currency] = (allTotals[currency] || 0) + amount;
-              }
-              for (const [currency, amount] of Object.entries(serviceTotals)) {
-                allTotals[currency] = (allTotals[currency] || 0) + amount;
-              }
-              for (const [currency, amount] of Object.entries(cruiseTotals)) {
-                allTotals[currency] = (allTotals[currency] || 0) + amount;
+              let allTotals: Record<string, number> = {};
+              
+              if (quote.summary_data?.totalesPorMoneda) {
+                allTotals = quote.summary_data.totalesPorMoneda;
+              } else {
+                // Fallback para cotizaciones antiguas o si tenemos los datos completos
+                const accommodationTotals = groupAmountsByCurrency(quote.accommodations_data || [], quote.summary_data?.currency || "USD", "precioTotal");
+                const transferTotals = groupAmountsByCurrency(quote.transfers_data || [], quote.summary_data?.currency || "USD", "precio");
+                const serviceTotals = groupAmountsByCurrency(quote.services_data || [], quote.summary_data?.currency || "USD", "precio");
+                const cruiseTotals = groupAmountsByCurrency(quote.cruises_data || [], quote.summary_data?.currency || "USD", "precio");
+                
+                allTotals = { ...accommodationTotals };
+                for (const [currency, amount] of Object.entries(transferTotals)) {
+                  allTotals[currency] = (allTotals[currency] || 0) + amount;
+                }
+                for (const [currency, amount] of Object.entries(serviceTotals)) {
+                  allTotals[currency] = (allTotals[currency] || 0) + amount;
+                }
+                for (const [currency, amount] of Object.entries(cruiseTotals)) {
+                  allTotals[currency] = (allTotals[currency] || 0) + amount;
+                }
               }
 
-              // Inferir tipo de cotización
-              const hasFlights = quote.flights_data && quote.flights_data.length > 0;
-              const hasAccommodations = quote.accommodations_data && quote.accommodations_data.length > 0;
-              const hasTransfers = quote.transfers_data && quote.transfers_data.length > 0;
-              const hasServices = quote.services_data && quote.services_data.length > 0;
-              const hasCruises = quote.cruises_data && quote.cruises_data.length > 0;
-              let tipoCotizacion = "";
-              if (hasCruises && !hasFlights && !hasAccommodations && !hasTransfers && !hasServices) {
-                tipoCotizacion = "Crucero";
-              } else if (hasFlights && !hasAccommodations && !hasTransfers && !hasServices && !hasCruises) {
-                tipoCotizacion = "Vuelo";
-              } else if (hasFlights && hasAccommodations && !hasTransfers && !hasServices && !hasCruises) {
-                tipoCotizacion = "Vuelo + Alojamiento";
-              } else if (hasFlights && (hasAccommodations || hasTransfers || hasServices || hasCruises)) {
-                tipoCotizacion = "Itinerario completo";
-              } else if (hasCruises && (hasAccommodations || hasTransfers || hasServices)) {
-                tipoCotizacion = "Itinerario completo";
-              } else {
-                tipoCotizacion = "Personalizada";
+              // Obtener tipo de cotización directamente desde summary_data.formMode
+              let tipoCotizacion = "Personalizada";
+              
+              if (quote.summary_data?.formMode) {
+                switch (quote.summary_data.formMode) {
+                  case 'flight': tipoCotizacion = "Vuelo"; break;
+                  case 'flight_hotel': tipoCotizacion = "Vuelo + Alojamiento"; break;
+                  case 'full': tipoCotizacion = "Itinerario completo"; break;
+                  case 'cruise': tipoCotizacion = "Crucero"; break;
+                }
               }
+              // Si no hay formMode guardado, se muestra "Personalizada" (cotizaciones antiguas)
 
               return (
                 <div key={quote.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">

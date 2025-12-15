@@ -132,10 +132,17 @@ const handleSupabaseError = (error: any): TemplateError => {
 let templatesCache: Template[] = []
 let lastTemplatesFetch = 0
 let isFetchingTemplates = false // Flag para evitar fetches simultáneos
+let cachedUserId: string | null = null // Track del usuario actual para invalidar cache al cambiar
 const TEMPLATES_CACHE_DURATION = 30000 // 30 segundos
 
 export function useTemplates(user: User | null) {
-  const [templates, setTemplates] = useState<Template[]>(templatesCache) // Inicializar con cache
+  const [templates, setTemplates] = useState<Template[]>(() => {
+    // Solo usar cache si es del mismo usuario
+    if (user && cachedUserId === user.id && templatesCache.length > 0) {
+      return templatesCache
+    }
+    return []
+  })
   const [currentTemplate, setCurrentTemplate] = useState<TemplateConfig>(defaultTemplate)
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -192,6 +199,7 @@ export function useTemplates(user: User | null) {
 
       // Actualizar cache global y estado local
       templatesCache = (data || []) as Template[]
+      cachedUserId = user.id // Guardar el ID del usuario actual
       lastTemplatesFetch = now
       setTemplates(templatesCache)
       
@@ -212,7 +220,8 @@ export function useTemplates(user: User | null) {
   }
 
   // Cargar template completo por ID (con template_data)
-  const loadTemplateById = async (id: string) => {
+  // Retorna el template completo para uso inmediato
+  const loadTemplateById = async (id: string): Promise<Template | null> => {
     try {
       console.log(`📥 Cargando template completo: ${id}`)
       
@@ -228,9 +237,12 @@ export function useTemplates(user: User | null) {
       if (data && data.template_data) {
         setCurrentTemplate({ ...defaultTemplate, ...data.template_data })
         console.log(`✅ Template completo cargado`)
+        return data as Template
       }
+      return null
     } catch (err: any) {
       console.error('Error loading template by ID:', err)
+      return null
     }
   }
 
@@ -409,10 +421,16 @@ export function useTemplates(user: User | null) {
     }, 2000)
   }
 
-  // Cambiar template actual
+  // Cambiar template actual (desde objeto Template completo)
   const setActiveTemplate = (template: Template) => {
     setCurrentTemplate({ ...defaultTemplate, ...template.template_data })
     clearErrors() // Limpiar errores al cambiar template
+  }
+
+  // Establecer template directamente desde TemplateConfig (para cargar desde cotizaciones guardadas)
+  const setTemplateFromConfig = (config: TemplateConfig) => {
+    setCurrentTemplate({ ...defaultTemplate, ...config })
+    clearErrors()
   }
 
   // ✅ Sincronizar estado local con cache al montar
@@ -447,8 +465,9 @@ export function useTemplates(user: User | null) {
     deleteTemplate,
     updateCurrentTemplate,
     setActiveTemplate,
+    setTemplateFromConfig,
     clearErrors,
     validateTemplateConfig,
     validateTemplateName,
   }
-} 
+}

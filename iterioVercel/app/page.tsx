@@ -1,7 +1,7 @@
 "use client"
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, Suspense, useRef } from "react"
 import { Download, Eye, FileSpreadsheet, Save, EyeOff, Plus, CheckCircle, AlertCircle, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -78,6 +78,15 @@ export default function TravelQuoteGenerator() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null)
   const [isLoadingQuote, setIsLoadingQuote] = useState(false)
+  
+  // Estado para el tipo de cotización (movido aquí para evitar problemas de closure)
+  const [formMode, setFormMode] = useState<'flight' | 'flight_hotel' | 'full' | 'cruise'>('full');
+  const formModeRef = useRef(formMode);
+  
+  // Mantener la ref sincronizada con el estado
+  useEffect(() => {
+    formModeRef.current = formMode;
+  }, [formMode]);
   
   // Estado global para funcionalidades habilitadas (fácil de extender)
   const [featuresEnabled, setFeaturesEnabled] = useState(() => {
@@ -247,7 +256,9 @@ export default function TravelQuoteGenerator() {
     createTemplate,
     updateTemplate: updateTemplateById,
     deleteTemplate,
-    clearErrors: clearTemplateErrors
+    clearErrors: clearTemplateErrors,
+    setActiveTemplate,
+    setTemplateFromConfig
   } = useTemplates(user)
   const { saveQuote, updateQuote } = useQuotes(user)
 
@@ -436,9 +447,10 @@ export default function TravelQuoteGenerator() {
 
 
   // Usar fetchTemplates del hook
-  const fetchTemplates = async () => {
+  // force=true fuerza recarga desde DB ignorando cache
+  const fetchTemplates = async (force = false) => {
     try {
-      await loadUserTemplates();
+      await loadUserTemplates(force);
     } catch (err: any) {
       console.error('Error inesperado al obtener templates:', err, JSON.stringify(err));
       toast({
@@ -517,24 +529,33 @@ export default function TravelQuoteGenerator() {
     
     // Detectar tipo de cotización
     let detectedFormMode: 'flight' | 'flight_hotel' | 'full' | 'cruise' = 'full';
-    const hasFlights = quote.flights_data && quote.flights_data.length > 0;
-    const hasAccommodations = quote.accommodations_data && quote.accommodations_data.length > 0;
-    const hasTransfers = quote.transfers_data && quote.transfers_data.length > 0;
-    const hasServices = quote.services_data && quote.services_data.length > 0;
-    const hasCruises = quote.cruises_data && quote.cruises_data.length > 0;
-
-    if (hasCruises && !hasFlights && !hasAccommodations && !hasTransfers && !hasServices) {
-      detectedFormMode = 'cruise';
-    } else if (hasFlights && !hasAccommodations && !hasTransfers && !hasServices && !hasCruises) {
-      detectedFormMode = 'flight';
-    } else if (hasFlights && hasAccommodations && !hasTransfers && !hasServices && !hasCruises) {
-      detectedFormMode = 'flight_hotel';
-    } else if (hasFlights || hasAccommodations || hasTransfers || hasServices || hasCruises) {
-      detectedFormMode = 'full';
+    
+    // 1. Prioridad: Usar el modo guardado explícitamente
+    if (quote.summary_data?.formMode) {
+      detectedFormMode = quote.summary_data.formMode;
     } else {
-      detectedFormMode = 'full'; // O ajusta según tu lógica
+      // 2. Fallback: Inferencia basada en datos (para cotizaciones antiguas)
+      const hasFlights = quote.flights_data && quote.flights_data.length > 0;
+      const hasAccommodations = quote.accommodations_data && quote.accommodations_data.length > 0;
+      const hasTransfers = quote.transfers_data && quote.transfers_data.length > 0;
+      const hasServices = quote.services_data && quote.services_data.length > 0;
+      const hasCruises = quote.cruises_data && quote.cruises_data.length > 0;
+
+      if (hasCruises && !hasFlights && !hasAccommodations && !hasTransfers && !hasServices) {
+        detectedFormMode = 'cruise';
+      } else if (hasFlights && !hasAccommodations && !hasTransfers && !hasServices && !hasCruises) {
+        detectedFormMode = 'flight';
+      } else if (hasFlights && hasAccommodations && !hasTransfers && !hasServices && !hasCruises) {
+        detectedFormMode = 'flight_hotel';
+      } else if (hasFlights || hasAccommodations || hasTransfers || hasServices || hasCruises) {
+        detectedFormMode = 'full';
+      } else {
+        detectedFormMode = 'full'; 
+      }
     }
+    
     setFormMode(detectedFormMode);
+    formModeRef.current = detectedFormMode; // Actualizar ref inmediatamente
 
     // Cargar datos de la cotización
     setDestinationData({
@@ -574,6 +595,11 @@ export default function TravelQuoteGenerator() {
         setSelectedCurrency(quote.summary_data.currency)
       }
       setMostrarCantidadPasajeros(quote.summary_data?.mostrarCantidadPasajeros ?? true);
+    }
+
+    // Cargar el template guardado en la cotización
+    if (quote.template_data) {
+      setTemplateFromConfig(quote.template_data)
     }
 
     setCurrentQuoteId(quote.id)
@@ -633,7 +659,8 @@ export default function TravelQuoteGenerator() {
         return;
       }
 
-      console.log('📝 Setting isSaving to true')
+      // Usar la ref para obtener el valor más reciente (evita problemas de closure)
+      const currentFormMode = formModeRef.current;
       setIsSaving(true)
       
       // Limpiar y validar datos antes de enviar
@@ -644,6 +671,65 @@ export default function TravelQuoteGenerator() {
         useCustomCurrency: Boolean(cruise.useCustomCurrency),
         currency: cruise.currency || selectedCurrency
       }))
+
+      // Calcular totales por moneda para guardar en summary_data (para el historial optimizado)
+      const totalesPorMoneda: Record<string, number> = {};
+      const addToTotal = (amount: string | number | undefined, currency: string | undefined) => {
+        if (!amount) return;
+        const val = Number(amount);
+        if (isNaN(val) || val === 0) return;
+        const curr = currency || selectedCurrency;
+        totalesPorMoneda[curr] = (totalesPorMoneda[curr] || 0) + val;
+      };
+
+      // Sumar vuelos (aproximación basada en totales visualizados o lógica simplificada si es complejo replicar toda la lógica de SummarySection)
+      // Nota: Para vuelos es complejo replicar la lógica exacta de visualización de precios (mochila vs carry on vs valija) aquí sin duplicar código.
+      // Por simplicidad para el historial, usaremos el subtotal calculado en summaryData si es posible, o sumaremos items simples.
+      // Dado que summaryData.subtotalVuelos ya tiene el total sumado, pero no discriminado por moneda (generalmente vuelos tienen una moneda base o convertida).
+      // Si queremos exactitud por moneda en el historial, deberíamos replicar la lógica de agrupación.
+      
+      // Hoteles
+      accommodations.forEach(acc => addToTotal(acc.precioTotal, acc.useCustomCurrency ? acc.currency : undefined));
+      // Traslados
+      transfers.forEach(tr => addToTotal(tr.precio, tr.useCustomCurrency ? tr.currency : undefined));
+      // Servicios
+      services.forEach(srv => addToTotal(srv.precio, srv.useCustomCurrency ? srv.currency : undefined));
+      // Cruceros
+      cleanCruises.forEach(cr => addToTotal(cr.precio, cr.useCustomCurrency ? cr.currency : undefined));
+      
+      // Vuelos: Es más complejo por las variantes. Si asumimos que summaryData.subtotalVuelos es correcto y está en selectedCurrency (mayoría de casos), lo sumamos ahí.
+      // O iteramos vuelos si tienen currency custom.
+      flights.forEach(flight => {
+         // Lógica simplificada: Sumar el precio base configurado * pasajeros.
+         // Esto es una aproximación para el historial. Lo ideal sería refactorizar la lógica de cálculo de precios a una utilidad compartida.
+         // Por ahora, usaremos selectedCurrency para vuelos a menos que tengan custom.
+         let flightTotal = 0;
+         // Sumar solo si el check de visualización está activo... es mucha lógica duplicada.
+         // Mejor estrategia: Si hay subtotalVuelos > 0, lo asignamos a la moneda del vuelo (o selectedCurrency).
+         // Como los vuelos pueden tener monedas mixtas, es difícil sin iterar.
+         // Vamos a confiar en que summaryData.subtotalVuelos ya tiene la suma, pero perdemos la distinción de moneda si hubo mix.
+         // Para el historial, mostrar el total en la moneda principal es aceptable si es complejo.
+         // Pero intentemos hacerlo bien:
+         const monedaVuelo = flight.useCustomCurrency && flight.currency ? flight.currency : selectedCurrency;
+         
+         const subtotalAdulto =
+           (flight.mostrarPrecioAdultoMochila ? parseFloat(flight.precioAdultoMochila || '0') : 0) +
+           (flight.mostrarPrecioAdultoMochilaCarryOn ? parseFloat(flight.precioAdultoMochilaCarryOn || '0') : 0) +
+           (flight.mostrarPrecioAdultoMochilaCarryOnValija ? parseFloat(flight.precioAdultoMochilaCarryOnValija || '0') : 0);
+         const subtotalMenor =
+           (flight.mostrarPrecioMenorMochila ? parseFloat(flight.precioMenorMochila || '0') : 0) +
+           (flight.mostrarPrecioMenorMochilaCarryOn ? parseFloat(flight.precioMenorMochilaCarryOn || '0') : 0) +
+           (flight.mostrarPrecioMenorMochilaCarryOnValija ? parseFloat(flight.precioMenorMochilaCarryOnValija || '0') : 0);
+         const subtotalInfante = (flight.mostrarPrecioInfante && flight.precioInfante) ? parseFloat(flight.precioInfante) : 0;
+         
+         flightTotal = (subtotalAdulto * (clientData.cantidadAdultos || 0)) + 
+                       (subtotalMenor * (clientData.cantidadMenores || 0)) + 
+                       (subtotalInfante * (clientData.cantidadInfantes || 0));
+                       
+         if (flightTotal > 0) {
+           totalesPorMoneda[monedaVuelo] = (totalesPorMoneda[monedaVuelo] || 0) + flightTotal;
+         }
+      });
       
       const quoteData = {
         title: quoteTitle || `Cotización ${destinationData.pais} ${destinationData.ciudad || "Sin título"}`,
@@ -655,7 +741,7 @@ export default function TravelQuoteGenerator() {
         transfers_data: transfers,
         services_data: services,
         cruises_data: cleanCruises,
-        summary_data: { ...summaryData, currency: selectedCurrency, mostrarCantidadPasajeros },
+        summary_data: { ...summaryData, currency: selectedCurrency, mostrarCantidadPasajeros, formMode: currentFormMode, totalesPorMoneda },
         template_data: template,
         total_amount: Number(summaryData.total) || 0,
         client_name: clientName,
@@ -1275,10 +1361,40 @@ export default function TravelQuoteGenerator() {
   };
 
   // Función para abrir modal de editar template
-  const handleEditTemplate = (tpl: Template) => {
+  // IMPORTANTE: Cargar template_data desde la DB porque el listado no lo trae (optimización)
+  const handleEditTemplate = async (tpl: Template) => {
     setEditingTemplate(tpl);
-    setTemplateForm({ ...tpl.template_data });
     setShowTemplateModal(true);
+    
+    // Si ya tiene template_data, usarlo directamente
+    if (tpl.template_data) {
+      setTemplateForm({ ...tpl.template_data, name: tpl.name });
+    } else {
+      // Cargar template completo desde la DB
+      const fullTemplate = await loadTemplateById(tpl.id);
+      if (fullTemplate && fullTemplate.template_data) {
+        setTemplateForm({ ...fullTemplate.template_data, name: fullTemplate.name });
+      } else {
+        // Fallback a valores por defecto si falla la carga
+        setTemplateForm({
+          name: tpl.name,
+          primaryColor: "#2563eb",
+          secondaryColor: "#f3f4f6",
+          fontFamily: "inherit",
+          logo: null,
+          agencyName: "",
+          agencyAddress: "",
+          agencyPhone: "",
+          agencyEmail: "",
+          validityText: "Esta cotización es válida por 15 días desde la fecha de emisión.",
+        });
+        toast({
+          title: "Advertencia",
+          description: "No se pudo cargar la configuración del template. Se usarán valores por defecto.",
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   // Guardar template (crear o editar)
@@ -1390,6 +1506,8 @@ export default function TravelQuoteGenerator() {
   const handleUseTempTemplate = () => {
     updateTemplate({}); // Limpiar para template temporal
     setShowTemplateSelectModal(false);
+    // IMPORTANTE: NO sobrescribir formMode, mantener el que eligió el usuario en el botón flotante
+    // Solo cambiar de tab
     setActiveTab('customize');
   };
 
@@ -1399,12 +1517,11 @@ export default function TravelQuoteGenerator() {
     setActiveTab('templates');
   };
 
-  const [formMode, setFormMode] = useState<'flight' | 'flight_hotel' | 'full' | 'cruise'>('full');
-
   // Handler para FloatingNewQuoteButton
   const handleNewQuoteMode = async (mode: 'flight' | 'flight_hotel' | 'full' | 'cruise') => {
-    setFormMode(mode);
     clearForm();
+    setFormMode(mode);
+    formModeRef.current = mode; // Actualizar ref inmediatamente para evitar problemas de timing
     setShowTemplateSelectModal(true);
     await fetchTemplates();
   };

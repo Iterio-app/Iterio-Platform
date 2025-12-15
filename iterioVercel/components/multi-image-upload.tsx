@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -96,42 +96,59 @@ export default function MultiImageUpload({
     }
   }
 
-  const handlePaste = useCallback(
-    (e: ClipboardEvent) => {
+  // Usar ref para mantener referencia estable del handler de paste
+  const [isFocused, setIsFocused] = useState(false)
+  const imagesRef = useRef(images)
+  imagesRef.current = images
+
+  // Manejar el listener de paste con useEffect para limpieza correcta
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!isFocused) return
+      
       const items = Array.from(e.clipboardData?.items || [])
       const imageItems = items.filter((item) => item.type.startsWith("image/"))
 
-      if (imageItems.length > 0 && images.length < maxImages) {
+      if (imageItems.length > 0 && imagesRef.current.length < maxImages) {
         const file = imageItems[0].getAsFile()
         if (file) {
+          e.preventDefault()
+          e.stopPropagation()
+          
           const reader = new FileReader()
-          reader.onload = async (e) => {
-            const imageData = e.target?.result as string
+          reader.onload = async (evt) => {
+            const imageData = evt.target?.result as string
             
             // Optimizar imagen antes de guardar
             try {
               const optimizedImage = await optimizeImage(imageData)
-              onImagesChange([...images, optimizedImage])
+              onImagesChange([...imagesRef.current, optimizedImage])
             } catch (error) {
               console.error('Error al optimizar imagen:', error)
               // Si falla la optimización, usar imagen original
-              onImagesChange([...images, imageData])
+              onImagesChange([...imagesRef.current, imageData])
             }
           }
           reader.readAsDataURL(file)
         }
       }
-    },
-    [images, onImagesChange, maxImages],
-  )
+    }
 
-  // Agregar event listener para paste cuando el componente está enfocado
+    if (isFocused) {
+      document.addEventListener("paste", handlePaste)
+    }
+
+    return () => {
+      document.removeEventListener("paste", handlePaste)
+    }
+  }, [isFocused, maxImages, onImagesChange])
+
   const handleFocus = () => {
-    document.addEventListener("paste", handlePaste)
+    setIsFocused(true)
   }
 
   const handleBlur = () => {
-    document.removeEventListener("paste", handlePaste)
+    setIsFocused(false)
   }
 
   const removeImage = (index: number) => {

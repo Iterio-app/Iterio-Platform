@@ -215,10 +215,10 @@ export default function SummarySection({
                     .replace(/_/g, " ")
                     .replace(/\b\w/g, (l) => l.toUpperCase());
                 };
-                // Detectar si hay precios para cada tipo de pasajero
-                const hasAdulto = flight.mostrarPrecioAdultoMochila || flight.mostrarPrecioAdultoMochilaCarryOn || flight.mostrarPrecioAdultoMochilaCarryOnValija;
-                const hasMenor = flight.mostrarPrecioMenorMochila || flight.mostrarPrecioMenorMochilaCarryOn || flight.mostrarPrecioMenorMochilaCarryOnValija;
-                const hasInfante = flight.mostrarPrecioInfante && flight.precioInfante && parseFloat(flight.precioInfante) > 0;
+                // Detectar si hay precios para cada tipo de pasajero Y si hay pasajeros de ese tipo
+                const hasAdulto = (clientData?.cantidadAdultos || 0) > 0 && (flight.mostrarPrecioAdultoMochila || flight.mostrarPrecioAdultoMochilaCarryOn || flight.mostrarPrecioAdultoMochilaCarryOnValija);
+                const hasMenor = (clientData?.cantidadMenores || 0) > 0 && (flight.mostrarPrecioMenorMochila || flight.mostrarPrecioMenorMochilaCarryOn || flight.mostrarPrecioMenorMochilaCarryOnValija);
+                const hasInfante = (clientData?.cantidadInfantes || 0) > 0 && flight.mostrarPrecioInfante && flight.precioInfante && parseFloat(flight.precioInfante) > 0;
 
                 // Reemplazo la lógica de showMochila, showMochilaCarryOn, showMochilaCarryOnValija por:
                 const showMochila = (flight.mostrarPrecioAdultoMochila || flight.mostrarPrecioMenorMochila);

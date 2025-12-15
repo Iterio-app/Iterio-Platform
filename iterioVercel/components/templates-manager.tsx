@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
 import TemplateCustomizer from "@/components/template-customizer";
@@ -38,10 +38,22 @@ export default function TemplatesManager({
   templateError = null,
   onDismissError,
 }: any) {
+  const formRef = useRef<HTMLDivElement>(null);
+
   // ✅ Hacer fetch cuando el componente se monta (usuario va a la tab de templates)
   useEffect(() => {
     fetchTemplates()
   }, [])
+
+  // Scroll automático al formulario cuando se abre
+  useEffect(() => {
+    if ((showTemplateModal || editingTemplate) && formRef.current) {
+      // Pequeño timeout para asegurar que el renderizado esté completo
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [showTemplateModal, editingTemplate]);
 
   return (
     <div className="max-w-6xl mx-auto py-10 px-4">
@@ -107,7 +119,7 @@ export default function TemplatesManager({
       </div>
       {/* Formulario stacked debajo del listado */}
       {(showTemplateModal || editingTemplate) && (
-        <div className="mt-8 bg-white rounded-lg shadow p-6 max-w-6xl mx-auto">
+        <div ref={formRef} className="mt-8 bg-white rounded-lg shadow p-6 max-w-6xl mx-auto">
           <h3 className="text-xl font-semibold mb-4">{editingTemplate ? "Editar Template" : "Nuevo Template"}</h3>
           <div className="mb-4">
             <label htmlFor="template-name" className="block text-sm font-medium text-gray-700 mb-1">Nombre del template</label>

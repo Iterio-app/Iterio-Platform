@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -74,28 +74,48 @@ export default function ImageUpload({ id, label, image, onImageChange, className
     }
   }
 
-  const handlePaste = useCallback(
-    (e: ClipboardEvent) => {
-      const items = Array.from(e.clipboardData?.items || [])
-      const imageItem = items.find((item) => item.type.startsWith("image/"))
+  // Usar ref para mantener referencia estable del handler de paste
+  const [isFocused, setIsFocused] = useState(false)
+  const handlePasteRef = useRef<(e: ClipboardEvent) => void>(() => {})
 
-      if (imageItem) {
-        const file = imageItem.getAsFile()
-        if (file) {
-          processFile(file)
-        }
+  // Actualizar la ref cuando cambian las dependencias
+  handlePasteRef.current = (e: ClipboardEvent) => {
+    const items = Array.from(e.clipboardData?.items || [])
+    const imageItem = items.find((item) => item.type.startsWith("image/"))
+
+    if (imageItem) {
+      const file = imageItem.getAsFile()
+      if (file) {
+        e.preventDefault()
+        e.stopPropagation()
+        processFile(file)
       }
-    },
-    [processFile],
-  )
+    }
+  }
 
-  // Agregar event listener para paste cuando el componente está enfocado
+  // Manejar el listener de paste con useEffect para limpieza correcta
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (isFocused) {
+        handlePasteRef.current(e)
+      }
+    }
+
+    if (isFocused) {
+      document.addEventListener("paste", handlePaste)
+    }
+
+    return () => {
+      document.removeEventListener("paste", handlePaste)
+    }
+  }, [isFocused])
+
   const handleFocus = () => {
-    document.addEventListener("paste", handlePaste)
+    setIsFocused(true)
   }
 
   const handleBlur = () => {
-    document.removeEventListener("paste", handlePaste)
+    setIsFocused(false)
   }
 
   const removeImage = () => {

@@ -43,9 +43,10 @@ export function useQuotes(user: User | null) {
       // ✅ OPTIMIZACIÓN: Solo seleccionar campos necesarios para la lista
       // NO traer JSONB con imágenes (flights_data, accommodations_data, etc.)
       // Esto reduce el Egress de ~100MB a ~1MB por carga
+      // IMPORTANTE: Incluir summary_data para poder leer el formMode y mostrar la etiqueta correcta
       const { data, error } = await supabase
         .from("quotes")
-        .select("id, user_id, title, destination, year, client_name, status, total_amount, pdf_url, created_at, updated_at")
+        .select("id, user_id, title, destination, year, client_name, status, total_amount, pdf_url, created_at, updated_at, summary_data")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(50) // Limitar a últimas 50 cotizaciones
@@ -57,7 +58,7 @@ export function useQuotes(user: User | null) {
       lastQuotesFetch = now
       setQuotes(quotesCache)
       
-      console.log(`📊 Cotizaciones cargadas: ${data?.length || 0} (sin imágenes - optimizado)`)
+      console.log(`📊 Cotizaciones cargadas: ${data?.length || 0} (optimizado)`)
     } catch (err: any) {
       setError(err.message)
     } finally {
