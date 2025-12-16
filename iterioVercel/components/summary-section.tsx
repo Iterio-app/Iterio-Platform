@@ -35,23 +35,32 @@ interface Flight {
   tipoTarifa: string
   precioAdultoMochila: string
   precioAdultoMochilaCarryOn: string
-  precioAdultoMochilaCarryOnValija: string
+  precioAdultoMochilaBodega: string
+  precioAdultoMochilaCarryOnBodega: string
   mostrarPrecioAdultoMochila: boolean
   mostrarPrecioAdultoMochilaCarryOn: boolean
-  mostrarPrecioAdultoMochilaCarryOnValija: boolean
+  mostrarPrecioAdultoMochilaBodega: boolean
+  mostrarPrecioAdultoMochilaCarryOnBodega: boolean
   precioMenorMochila: string
   precioMenorMochilaCarryOn: string
-  precioMenorMochilaCarryOnValija: string
+  precioMenorMochilaBodega: string
+  precioMenorMochilaCarryOnBodega: string
   mostrarPrecioMenorMochila: boolean
   mostrarPrecioMenorMochilaCarryOn: boolean
-  mostrarPrecioMenorMochilaCarryOnValija: boolean
+  mostrarPrecioMenorMochilaBodega: boolean
+  mostrarPrecioMenorMochilaCarryOnBodega: boolean
   precioInfante: string
   mostrarPrecioInfante: boolean
   compania?: string
   aerolinea?: string
-  destino?: string // Added for the new logic
+  destino?: string
   useCustomCurrency?: boolean;
   currency?: string;
+  // Campos legacy para compatibilidad con cotizaciones antiguas
+  precioAdultoMochilaCarryOnValija?: string
+  precioMenorMochilaCarryOnValija?: string
+  mostrarPrecioAdultoMochilaCarryOnValija?: boolean
+  mostrarPrecioMenorMochilaCarryOnValija?: boolean
 }
 
 interface Accommodation {
@@ -132,36 +141,73 @@ export default function SummarySection({
     return `${currency} ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  // Helper para obtener valores de campos legacy o nuevos
+  const getFlightValue = (flight: Flight, newField: keyof Flight, legacyField?: keyof Flight) => {
+    const newValue = flight[newField];
+    if (newValue !== undefined && newValue !== '' && newValue !== null) return newValue;
+    if (legacyField) {
+      const legacyValue = flight[legacyField];
+      if (legacyValue !== undefined) return legacyValue;
+    }
+    return newField.includes('mostrar') ? false : '0';
+  };
+
   // Calcular totales de vuelos por variante
   const flightTotals = {
     soloMochila: 0,
     mochilaCarryOn: 0,
-    mochilaCarryOnValija: 0,
+    mochilaBodega: 0,
+    mochilaCarryOnBodega: 0,
   };
   flights.forEach(flight => {
     if (flight.mostrarPrecioAdultoMochila) flightTotals.soloMochila += parseFloat(flight.precioAdultoMochila || '0');
     if (flight.mostrarPrecioAdultoMochilaCarryOn) flightTotals.mochilaCarryOn += parseFloat(flight.precioAdultoMochilaCarryOn || '0');
-    if (flight.mostrarPrecioAdultoMochilaCarryOnValija) flightTotals.mochilaCarryOnValija += parseFloat(flight.precioAdultoMochilaCarryOnValija || '0');
+    if (flight.mostrarPrecioAdultoMochilaBodega) flightTotals.mochilaBodega += parseFloat(flight.precioAdultoMochilaBodega || '0');
+    // Compatibilidad: usar campo nuevo o legacy
+    const showAdultoBodega = flight.mostrarPrecioAdultoMochilaCarryOnBodega ?? flight.mostrarPrecioAdultoMochilaCarryOnValija;
+    const precioAdultoBodega = flight.precioAdultoMochilaCarryOnBodega || flight.precioAdultoMochilaCarryOnValija || '0';
+    if (showAdultoBodega) flightTotals.mochilaCarryOnBodega += parseFloat(precioAdultoBodega);
+    
     if (flight.mostrarPrecioMenorMochila) flightTotals.soloMochila += parseFloat(flight.precioMenorMochila || '0');
     if (flight.mostrarPrecioMenorMochilaCarryOn) flightTotals.mochilaCarryOn += parseFloat(flight.precioMenorMochilaCarryOn || '0');
-    if (flight.mostrarPrecioMenorMochilaCarryOnValija) flightTotals.mochilaCarryOnValija += parseFloat(flight.precioMenorMochilaCarryOnValija || '0');
+    if (flight.mostrarPrecioMenorMochilaBodega) flightTotals.mochilaBodega += parseFloat(flight.precioMenorMochilaBodega || '0');
+    const showMenorBodega = flight.mostrarPrecioMenorMochilaCarryOnBodega ?? flight.mostrarPrecioMenorMochilaCarryOnValija;
+    const precioMenorBodega = flight.precioMenorMochilaCarryOnBodega || flight.precioMenorMochilaCarryOnValija || '0';
+    if (showMenorBodega) flightTotals.mochilaCarryOnBodega += parseFloat(precioMenorBodega);
   });
+
+  // Helper para verificar si un vuelo tiene algún precio de equipaje configurado
+  const flightHasAnyPrice = (f: Flight) => {
+    return f.mostrarPrecioAdultoMochila || f.mostrarPrecioAdultoMochilaCarryOn || 
+           f.mostrarPrecioAdultoMochilaBodega || (f.mostrarPrecioAdultoMochilaCarryOnBodega ?? f.mostrarPrecioAdultoMochilaCarryOnValija) ||
+           f.mostrarPrecioMenorMochila || f.mostrarPrecioMenorMochilaCarryOn || 
+           f.mostrarPrecioMenorMochilaBodega || (f.mostrarPrecioMenorMochilaCarryOnBodega ?? f.mostrarPrecioMenorMochilaCarryOnValija);
+  };
 
   // Determinar columnas globales para totales generales
   const globalShowMochila = flights.length > 0 && flights.every(f => {
-    const hasAdulto = f.mostrarPrecioAdultoMochila || f.mostrarPrecioAdultoMochilaCarryOn || f.mostrarPrecioAdultoMochilaCarryOnValija;
-    const hasMenor = f.mostrarPrecioMenorMochila || f.mostrarPrecioMenorMochilaCarryOn || f.mostrarPrecioMenorMochilaCarryOnValija;
+    if (!flightHasAnyPrice(f)) return true;
+    const hasAdulto = f.mostrarPrecioAdultoMochila || f.mostrarPrecioAdultoMochilaCarryOn || f.mostrarPrecioAdultoMochilaBodega || (f.mostrarPrecioAdultoMochilaCarryOnBodega ?? f.mostrarPrecioAdultoMochilaCarryOnValija);
+    const hasMenor = f.mostrarPrecioMenorMochila || f.mostrarPrecioMenorMochilaCarryOn || f.mostrarPrecioMenorMochilaBodega || (f.mostrarPrecioMenorMochilaCarryOnBodega ?? f.mostrarPrecioMenorMochilaCarryOnValija);
     return (hasAdulto ? f.mostrarPrecioAdultoMochila : true) && (hasMenor ? f.mostrarPrecioMenorMochila : true);
   });
   const globalShowMochilaCarryOn = flights.length > 0 && flights.every(f => {
-    const hasAdulto = f.mostrarPrecioAdultoMochila || f.mostrarPrecioAdultoMochilaCarryOn || f.mostrarPrecioAdultoMochilaCarryOnValija;
-    const hasMenor = f.mostrarPrecioMenorMochila || f.mostrarPrecioMenorMochilaCarryOn || f.mostrarPrecioMenorMochilaCarryOnValija;
+    if (!flightHasAnyPrice(f)) return true;
+    const hasAdulto = f.mostrarPrecioAdultoMochila || f.mostrarPrecioAdultoMochilaCarryOn || f.mostrarPrecioAdultoMochilaBodega || (f.mostrarPrecioAdultoMochilaCarryOnBodega ?? f.mostrarPrecioAdultoMochilaCarryOnValija);
+    const hasMenor = f.mostrarPrecioMenorMochila || f.mostrarPrecioMenorMochilaCarryOn || f.mostrarPrecioMenorMochilaBodega || (f.mostrarPrecioMenorMochilaCarryOnBodega ?? f.mostrarPrecioMenorMochilaCarryOnValija);
     return (hasAdulto ? f.mostrarPrecioAdultoMochilaCarryOn : true) && (hasMenor ? f.mostrarPrecioMenorMochilaCarryOn : true);
   });
-  const globalShowMochilaCarryOnValija = flights.length > 0 && flights.every(f => {
-    const hasAdulto = f.mostrarPrecioAdultoMochila || f.mostrarPrecioAdultoMochilaCarryOn || f.mostrarPrecioAdultoMochilaCarryOnValija;
-    const hasMenor = f.mostrarPrecioMenorMochila || f.mostrarPrecioMenorMochilaCarryOn || f.mostrarPrecioMenorMochilaCarryOnValija;
-    return (hasAdulto ? f.mostrarPrecioAdultoMochilaCarryOnValija : true) && (hasMenor ? f.mostrarPrecioMenorMochilaCarryOnValija : true);
+  const globalShowMochilaBodega = flights.length > 0 && flights.every(f => {
+    if (!flightHasAnyPrice(f)) return true;
+    const hasAdulto = f.mostrarPrecioAdultoMochila || f.mostrarPrecioAdultoMochilaCarryOn || f.mostrarPrecioAdultoMochilaBodega || (f.mostrarPrecioAdultoMochilaCarryOnBodega ?? f.mostrarPrecioAdultoMochilaCarryOnValija);
+    const hasMenor = f.mostrarPrecioMenorMochila || f.mostrarPrecioMenorMochilaCarryOn || f.mostrarPrecioMenorMochilaBodega || (f.mostrarPrecioMenorMochilaCarryOnBodega ?? f.mostrarPrecioMenorMochilaCarryOnValija);
+    return (hasAdulto ? f.mostrarPrecioAdultoMochilaBodega : true) && (hasMenor ? f.mostrarPrecioMenorMochilaBodega : true);
+  });
+  const globalShowMochilaCarryOnBodega = flights.length > 0 && flights.every(f => {
+    if (!flightHasAnyPrice(f)) return true;
+    const hasAdulto = f.mostrarPrecioAdultoMochila || f.mostrarPrecioAdultoMochilaCarryOn || f.mostrarPrecioAdultoMochilaBodega || (f.mostrarPrecioAdultoMochilaCarryOnBodega ?? f.mostrarPrecioAdultoMochilaCarryOnValija);
+    const hasMenor = f.mostrarPrecioMenorMochila || f.mostrarPrecioMenorMochilaCarryOn || f.mostrarPrecioMenorMochilaBodega || (f.mostrarPrecioMenorMochilaCarryOnBodega ?? f.mostrarPrecioMenorMochilaCarryOnValija);
+    return (hasAdulto ? (f.mostrarPrecioAdultoMochilaCarryOnBodega ?? f.mostrarPrecioAdultoMochilaCarryOnValija) : true) && (hasMenor ? (f.mostrarPrecioMenorMochilaCarryOnBodega ?? f.mostrarPrecioMenorMochilaCarryOnValija) : true);
   });
 
   // Agrego helpers arriba de la función principal:
@@ -215,25 +261,34 @@ export default function SummarySection({
                     .replace(/_/g, " ")
                     .replace(/\b\w/g, (l) => l.toUpperCase());
                 };
+                // Compatibilidad con campos legacy (Valija -> Bodega)
+                const showAdultoBodega = flight.mostrarPrecioAdultoMochilaCarryOnBodega ?? flight.mostrarPrecioAdultoMochilaCarryOnValija;
+                const showMenorBodega = flight.mostrarPrecioMenorMochilaCarryOnBodega ?? flight.mostrarPrecioMenorMochilaCarryOnValija;
+                const precioAdultoBodega = flight.precioAdultoMochilaCarryOnBodega || flight.precioAdultoMochilaCarryOnValija || '0';
+                const precioMenorBodega = flight.precioMenorMochilaCarryOnBodega || flight.precioMenorMochilaCarryOnValija || '0';
+
                 // Detectar si hay precios para cada tipo de pasajero Y si hay pasajeros de ese tipo
-                const hasAdulto = (clientData?.cantidadAdultos || 0) > 0 && (flight.mostrarPrecioAdultoMochila || flight.mostrarPrecioAdultoMochilaCarryOn || flight.mostrarPrecioAdultoMochilaCarryOnValija);
-                const hasMenor = (clientData?.cantidadMenores || 0) > 0 && (flight.mostrarPrecioMenorMochila || flight.mostrarPrecioMenorMochilaCarryOn || flight.mostrarPrecioMenorMochilaCarryOnValija);
+                const hasAdulto = (clientData?.cantidadAdultos || 0) > 0 && (flight.mostrarPrecioAdultoMochila || flight.mostrarPrecioAdultoMochilaCarryOn || flight.mostrarPrecioAdultoMochilaBodega || showAdultoBodega);
+                const hasMenor = (clientData?.cantidadMenores || 0) > 0 && (flight.mostrarPrecioMenorMochila || flight.mostrarPrecioMenorMochilaCarryOn || flight.mostrarPrecioMenorMochilaBodega || showMenorBodega);
                 const hasInfante = (clientData?.cantidadInfantes || 0) > 0 && flight.mostrarPrecioInfante && flight.precioInfante && parseFloat(flight.precioInfante) > 0;
 
-                // Reemplazo la lógica de showMochila, showMochilaCarryOn, showMochilaCarryOnValija por:
+                // Determinar qué columnas mostrar
                 const showMochila = (flight.mostrarPrecioAdultoMochila || flight.mostrarPrecioMenorMochila);
                 const showMochilaCarryOn = (flight.mostrarPrecioAdultoMochilaCarryOn || flight.mostrarPrecioMenorMochilaCarryOn);
-                const showMochilaCarryOnValija = (flight.mostrarPrecioAdultoMochilaCarryOnValija || flight.mostrarPrecioMenorMochilaCarryOnValija);
+                const showMochilaBodega = (flight.mostrarPrecioAdultoMochilaBodega || flight.mostrarPrecioMenorMochilaBodega);
+                const showMochilaCarryOnBodega = (showAdultoBodega || showMenorBodega);
 
                 // Subtotales por vuelo
                 const subtotalAdulto =
                   (flight.mostrarPrecioAdultoMochila ? parseFloat(flight.precioAdultoMochila || '0') : 0) +
                   (flight.mostrarPrecioAdultoMochilaCarryOn ? parseFloat(flight.precioAdultoMochilaCarryOn || '0') : 0) +
-                  (flight.mostrarPrecioAdultoMochilaCarryOnValija ? parseFloat(flight.precioAdultoMochilaCarryOnValija || '0') : 0);
+                  (flight.mostrarPrecioAdultoMochilaBodega ? parseFloat(flight.precioAdultoMochilaBodega || '0') : 0) +
+                  (showAdultoBodega ? parseFloat(precioAdultoBodega) : 0);
                 const subtotalMenor =
                   (flight.mostrarPrecioMenorMochila ? parseFloat(flight.precioMenorMochila || '0') : 0) +
                   (flight.mostrarPrecioMenorMochilaCarryOn ? parseFloat(flight.precioMenorMochilaCarryOn || '0') : 0) +
-                  (flight.mostrarPrecioMenorMochilaCarryOnValija ? parseFloat(flight.precioMenorMochilaCarryOnValija || '0') : 0);
+                  (flight.mostrarPrecioMenorMochilaBodega ? parseFloat(flight.precioMenorMochilaBodega || '0') : 0) +
+                  (showMenorBodega ? parseFloat(precioMenorBodega) : 0);
                 const subtotalInfante = hasInfante ? parseFloat(flight.precioInfante || '0') : 0;
 
                 const monedaVuelo = flight.useCustomCurrency && flight.currency ? flight.currency : selectedCurrency;
@@ -246,13 +301,14 @@ export default function SummarySection({
                       <span className="text-gray-500">|</span>
                       <span className="capitalize">{formatTarifa(flight.tipoTarifa)}</span>
                     </div>
-                    <table className={`${!isSidebarVisible ? 'min-w-[800px] border text-base' : 'min-w-[600px] border text-sm'} mb-2 mx-auto`} style={{ marginLeft: 'auto', marginRight: 'auto' }}>
+                    <table className={`${!isSidebarVisible ? 'min-w-[900px] border text-base' : 'min-w-[700px] border text-sm'} mb-2 mx-auto`} style={{ marginLeft: 'auto', marginRight: 'auto' }}>
                       <thead>
                         <tr className="bg-gray-50 text-center">
                           <th className={`${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} border`}>Tipo de pasajero</th>
                           {showMochila && <th className={`${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} border`}>Solo mochila</th>}
                           {showMochilaCarryOn && <th className={`${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} border`}>Mochila + Carry On</th>}
-                          {showMochilaCarryOnValija && <th className={`${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} border`}>Mochila + Carry On + Valija 23kg</th>}
+                          {showMochilaBodega && <th className={`${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} border`}>Mochila + Bodega</th>}
+                          {showMochilaCarryOnBodega && <th className={`${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} border`}>Mochila + Carry On + Bodega</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -261,7 +317,8 @@ export default function SummarySection({
                             <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-medium`}>Adulto (x{clientData?.cantidadAdultos || 1})</td>
                             {showMochila && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioAdultoMochila ? formatCurrencyBy(parseFloat(flight.precioAdultoMochila || '0') * (clientData?.cantidadAdultos || 1), monedaVuelo) : '-'}</td>}
                             {showMochilaCarryOn && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioAdultoMochilaCarryOn ? formatCurrencyBy(parseFloat(flight.precioAdultoMochilaCarryOn || '0') * (clientData?.cantidadAdultos || 1), monedaVuelo) : '-'}</td>}
-                            {showMochilaCarryOnValija && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioAdultoMochilaCarryOnValija ? formatCurrencyBy(parseFloat(flight.precioAdultoMochilaCarryOnValija || '0') * (clientData?.cantidadAdultos || 1), monedaVuelo) : '-'}</td>}
+                            {showMochilaBodega && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioAdultoMochilaBodega ? formatCurrencyBy(parseFloat(flight.precioAdultoMochilaBodega || '0') * (clientData?.cantidadAdultos || 1), monedaVuelo) : '-'}</td>}
+                            {showMochilaCarryOnBodega && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{showAdultoBodega ? formatCurrencyBy(parseFloat(precioAdultoBodega) * (clientData?.cantidadAdultos || 1), monedaVuelo) : '-'}</td>}
                           </tr>
                         )}
                         {hasMenor && (
@@ -269,13 +326,14 @@ export default function SummarySection({
                             <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-medium`}>Menor (x{clientData?.cantidadMenores || 1})</td>
                             {showMochila && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioMenorMochila ? formatCurrencyBy(parseFloat(flight.precioMenorMochila || '0') * (clientData?.cantidadMenores || 1), monedaVuelo) : '-'}</td>}
                             {showMochilaCarryOn && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioMenorMochilaCarryOn ? formatCurrencyBy(parseFloat(flight.precioMenorMochilaCarryOn || '0') * (clientData?.cantidadMenores || 1), monedaVuelo) : '-'}</td>}
-                            {showMochilaCarryOnValija && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioMenorMochilaCarryOnValija ? formatCurrencyBy(parseFloat(flight.precioMenorMochilaCarryOnValija || '0') * (clientData?.cantidadMenores || 1), monedaVuelo) : '-'}</td>}
+                            {showMochilaBodega && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{flight.mostrarPrecioMenorMochilaBodega ? formatCurrencyBy(parseFloat(flight.precioMenorMochilaBodega || '0') * (clientData?.cantidadMenores || 1), monedaVuelo) : '-'}</td>}
+                            {showMochilaCarryOnBodega && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`}>{showMenorBodega ? formatCurrencyBy(parseFloat(precioMenorBodega) * (clientData?.cantidadMenores || 1), monedaVuelo) : '-'}</td>}
                           </tr>
                         )}
                         {hasInfante && (
                           <tr className="text-center">
                             <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-medium`}>Infante (x{clientData?.cantidadInfantes || 1})</td>
-                            <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`} colSpan={((showMochila ? 1 : 0) + (showMochilaCarryOn ? 1 : 0) + (showMochilaCarryOnValija ? 1 : 0))}>{formatCurrencyBy(parseFloat(flight.precioInfante || '0') * (clientData?.cantidadInfantes || 1), monedaVuelo)}</td>
+                            <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'}`} colSpan={((showMochila ? 1 : 0) + (showMochilaCarryOn ? 1 : 0) + (showMochilaBodega ? 1 : 0) + (showMochilaCarryOnBodega ? 1 : 0))}>{formatCurrencyBy(parseFloat(flight.precioInfante || '0') * (clientData?.cantidadInfantes || 1), monedaVuelo)}</td>
                           </tr>
                         )}
                       </tbody>
@@ -286,7 +344,8 @@ export default function SummarySection({
                           </td>
                           {showMochila && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-semibold`}>{formatCurrencyBy((flight.mostrarPrecioAdultoMochila ? parseFloat(flight.precioAdultoMochila || '0') * (clientData?.cantidadAdultos || 1) : 0) + (flight.mostrarPrecioMenorMochila ? parseFloat(flight.precioMenorMochila || '0') * (clientData?.cantidadMenores || 1) : 0) + (hasInfante ? parseFloat(flight.precioInfante || '0') * (clientData?.cantidadInfantes || 1) : 0), monedaVuelo)}</td>}
                           {showMochilaCarryOn && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-semibold`}>{formatCurrencyBy((flight.mostrarPrecioAdultoMochilaCarryOn ? parseFloat(flight.precioAdultoMochilaCarryOn || '0') * (clientData?.cantidadAdultos || 1) : 0) + (flight.mostrarPrecioMenorMochilaCarryOn ? parseFloat(flight.precioMenorMochilaCarryOn || '0') * (clientData?.cantidadMenores || 1) : 0) + (hasInfante ? parseFloat(flight.precioInfante || '0') * (clientData?.cantidadInfantes || 1) : 0), monedaVuelo)}</td>}
-                          {showMochilaCarryOnValija && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-semibold`}>{formatCurrencyBy((flight.mostrarPrecioAdultoMochilaCarryOnValija ? parseFloat(flight.precioAdultoMochilaCarryOnValija || '0') * (clientData?.cantidadAdultos || 1) : 0) + (flight.mostrarPrecioMenorMochilaCarryOnValija ? parseFloat(flight.precioMenorMochilaCarryOnValija || '0') * (clientData?.cantidadMenores || 1) : 0) + (hasInfante ? parseFloat(flight.precioInfante || '0') * (clientData?.cantidadInfantes || 1) : 0), monedaVuelo)}</td>}
+                          {showMochilaBodega && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-semibold`}>{formatCurrencyBy((flight.mostrarPrecioAdultoMochilaBodega ? parseFloat(flight.precioAdultoMochilaBodega || '0') * (clientData?.cantidadAdultos || 1) : 0) + (flight.mostrarPrecioMenorMochilaBodega ? parseFloat(flight.precioMenorMochilaBodega || '0') * (clientData?.cantidadMenores || 1) : 0) + (hasInfante ? parseFloat(flight.precioInfante || '0') * (clientData?.cantidadInfantes || 1) : 0), monedaVuelo)}</td>}
+                          {showMochilaCarryOnBodega && <td className={`border ${!isSidebarVisible ? 'px-4 py-2' : 'px-2 py-1'} font-semibold`}>{formatCurrencyBy((showAdultoBodega ? parseFloat(precioAdultoBodega) * (clientData?.cantidadAdultos || 1) : 0) + (showMenorBodega ? parseFloat(precioMenorBodega) * (clientData?.cantidadMenores || 1) : 0) + (hasInfante ? parseFloat(flight.precioInfante || '0') * (clientData?.cantidadInfantes || 1) : 0), monedaVuelo)}</td>}
                         </tr>
                       </tfoot>
                     </table>

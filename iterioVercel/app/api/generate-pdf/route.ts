@@ -157,6 +157,27 @@ function generatePdfHtml(data: any, template: any): string {
     return regimenes[regimen] || regimen
   }
 
+  // Generar URL de Google Fonts basada en la fuente del template
+  const getFontUrl = (fontFamily: string) => {
+    const fontMap: Record<string, string> = {
+      'Playfair Display': 'Playfair+Display:wght@400;500;600;700',
+      'Roboto': 'Roboto:wght@300;400;500;700',
+      'Open Sans': 'Open+Sans:wght@300;400;500;600;700',
+      'Lato': 'Lato:wght@300;400;700',
+      'Montserrat': 'Montserrat:wght@300;400;500;600;700',
+      'Poppins': 'Poppins:wght@300;400;500;600;700',
+      'Raleway': 'Raleway:wght@300;400;500;600;700',
+      'Oswald': 'Oswald:wght@300;400;500;600;700',
+      'Merriweather': 'Merriweather:wght@300;400;700',
+      'Source Sans Pro': 'Source+Sans+Pro:wght@300;400;600;700',
+      'Nunito': 'Nunito:wght@300;400;600;700',
+      'Ubuntu': 'Ubuntu:wght@300;400;500;700',
+    }
+    return fontMap[fontFamily] || 'Roboto:wght@300;400;500;700'
+  }
+
+  const fontUrl = getFontUrl(template.fontFamily)
+
   return `
     <!DOCTYPE html>
     <html lang="es">
@@ -164,6 +185,8 @@ function generatePdfHtml(data: any, template: any): string {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
+        @import url('https://fonts.googleapis.com/css2?family=${fontUrl}&display=block');
+        
         * {
   margin: 0;
   padding: 0;
@@ -171,7 +194,7 @@ function generatePdfHtml(data: any, template: any): string {
 }
 
 body {
-  font-family: ${template.fontFamily}, Arial, sans-serif;
+  font-family: '${template.fontFamily}', Arial, sans-serif;
   line-height: 1.4;
   color: #333;
   background: white;
@@ -750,7 +773,7 @@ body {
                 .map(
                   (opcion: any) => `
                 <div class="flight-option">
-                  <span>${opcion.tipo === "mochila" ? "Solo mochila" : opcion.tipo === "mochilaCarryOn" ? "Mochila y equipaje de mano" : opcion.tipo === "mochilaCarryOnValija" ? "Mochila, equipaje de mano y maleta de 23kg" : "Tarifa única"}</span>
+                  <span>${opcion.tipo === "mochila" ? "Solo mochila" : opcion.tipo === "mochilaCarryOn" ? "Mochila + Carry On" : opcion.tipo === "mochilaBodega" ? "Mochila + Bodega" : opcion.tipo === "mochilaCarryOnBodega" || opcion.tipo === "mochilaCarryOnValija" ? "Mochila + Carry On + Bodega" : "Tarifa única"}</span>
                   <strong style="color: ${template.primaryColor};">${formatCurrency(opcion.precio, vuelo.useCustomCurrency && vuelo.currency ? vuelo.currency : data.totales?.currency || "USD")}</strong>
                 </div>
               `,
@@ -769,7 +792,7 @@ body {
                 .map(
                   (opcion: any) => `
                 <div class="flight-option">
-                  <span>${opcion.tipo === "mochila" ? "Solo mochila" : opcion.tipo === "mochilaCarryOn" ? "Mochila y equipaje de mano" : opcion.tipo === "mochilaCarryOnValija" ? "Mochila, equipaje de mano y maleta de 23kg" : "Tarifa única"}</span>
+                  <span>${opcion.tipo === "mochila" ? "Solo mochila" : opcion.tipo === "mochilaCarryOn" ? "Mochila + Carry On" : opcion.tipo === "mochilaBodega" ? "Mochila + Bodega" : opcion.tipo === "mochilaCarryOnBodega" || opcion.tipo === "mochilaCarryOnValija" ? "Mochila + Carry On + Bodega" : "Tarifa única"}</span>
                   <strong style="color: ${template.primaryColor};">${formatCurrency(opcion.precio, vuelo.useCustomCurrency && vuelo.currency ? vuelo.currency : data.totales?.currency || "USD")}</strong>
                 </div>
               `,

@@ -44,10 +44,82 @@ export function useGeneratePDF() {
       if (html.includes('<html')) {
         const parser = new DOMParser()
         const doc = parser.parseFromString(html, 'text/html')
+        
+        // Eliminar el botón de imprimir antes de generar el PDF
+        const printButton = doc.querySelector('.print-button')
+        if (printButton) {
+          printButton.remove()
+          console.log('🗑️ Botón de imprimir eliminado del HTML')
+        }
+        
         const headHtml = doc.head?.innerHTML || ''
         const bodyHtml = doc.body?.innerHTML || ''
         contentHtml = `<html><head>${headHtml}</head><body>${bodyHtml}</body></html>`
       }
+
+      onProgress?.('Cargando fuentes...')
+
+      // Extraer el nombre de la fuente del HTML
+      const fontFamilyMatch = contentHtml.match(/font-family:\s*'([^']+)'/)
+      const fontFamily = fontFamilyMatch ? fontFamilyMatch[1] : 'Roboto'
+      
+      // Mapa de fuentes a URLs de Google Fonts (formato woff2)
+      const fontUrlMap: Record<string, string> = {
+        'Playfair Display': 'https://fonts.gstatic.com/s/playfairdisplay/v30/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtM.woff2',
+        'Roboto': 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxK.woff2',
+        'Open Sans': 'https://fonts.gstatic.com/s/opensans/v35/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsjZ0B4gaVI.woff2',
+        'Lato': 'https://fonts.gstatic.com/s/lato/v24/S6uyw4BMUTPHjx4wXg.woff2',
+        'Montserrat': 'https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw5aXo.woff2',
+        'Poppins': 'https://fonts.gstatic.com/s/poppins/v20/pxiEyp8kv8JHgFVrJJfecg.woff2',
+        'Raleway': 'https://fonts.gstatic.com/s/raleway/v28/1Ptxg8zYS_SKggPN4iEgvnHyvveLxVvaorCIPrE.woff2',
+        'Merriweather': 'https://fonts.gstatic.com/s/merriweather/v30/u-440qyriQwlOrhSvowK_l5-fCZM.woff2',
+        'Nunito': 'https://fonts.gstatic.com/s/nunito/v25/XRXV3I6Li01BKofINeaE.woff2',
+        'Ubuntu': 'https://fonts.gstatic.com/s/ubuntu/v20/4iCs6KVjbNBYlgo6eA.woff2',
+      }
+
+      // Descargar la fuente y convertirla a base64 para embeber en el HTML
+      if (fontUrlMap[fontFamily]) {
+        try {
+          const fontUrl = fontUrlMap[fontFamily]
+          console.log(`📥 Descargando fuente ${fontFamily} desde ${fontUrl}`)
+          
+          const response = await fetch(fontUrl)
+          const fontBlob = await response.blob()
+          
+          // Convertir a base64
+          const fontBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.onerror = reject
+            reader.readAsDataURL(fontBlob)
+          })
+          
+          // Crear @font-face con la fuente embebida
+          const fontFaceCSS = `
+            @font-face {
+              font-family: '${fontFamily}';
+              src: url(${fontBase64}) format('woff2');
+              font-weight: 100 900;
+              font-style: normal;
+              font-display: block;
+            }
+          `
+          
+          // Inyectar el @font-face en el HTML
+          if (contentHtml.includes('<style>')) {
+            contentHtml = contentHtml.replace('<style>', `<style>${fontFaceCSS}`)
+          } else if (contentHtml.includes('</head>')) {
+            contentHtml = contentHtml.replace('</head>', `<style>${fontFaceCSS}</style></head>`)
+          }
+          
+          console.log(`✅ Fuente ${fontFamily} embebida en el HTML (${Math.round(fontBase64.length / 1024)}KB)`)
+        } catch (fontError) {
+          console.warn(`⚠️ No se pudo embeber la fuente ${fontFamily}:`, fontError)
+        }
+      }
+
+      // Esperar un momento para que el navegador procese los estilos
+      await new Promise(resolve => setTimeout(resolve, 300))
 
       onProgress?.('Generando PDF...')
 

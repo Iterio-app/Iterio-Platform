@@ -712,14 +712,22 @@ export default function TravelQuoteGenerator() {
          // Pero intentemos hacerlo bien:
          const monedaVuelo = flight.useCustomCurrency && flight.currency ? flight.currency : selectedCurrency;
          
+         // Compatibilidad con campos legacy (Valija -> Bodega)
+         const showAdultoBodega = flight.mostrarPrecioAdultoMochilaCarryOnBodega ?? flight.mostrarPrecioAdultoMochilaCarryOnValija;
+         const showMenorBodega = flight.mostrarPrecioMenorMochilaCarryOnBodega ?? flight.mostrarPrecioMenorMochilaCarryOnValija;
+         const precioAdultoBodega = flight.precioAdultoMochilaCarryOnBodega || flight.precioAdultoMochilaCarryOnValija || '0';
+         const precioMenorBodega = flight.precioMenorMochilaCarryOnBodega || flight.precioMenorMochilaCarryOnValija || '0';
+         
          const subtotalAdulto =
            (flight.mostrarPrecioAdultoMochila ? parseFloat(flight.precioAdultoMochila || '0') : 0) +
            (flight.mostrarPrecioAdultoMochilaCarryOn ? parseFloat(flight.precioAdultoMochilaCarryOn || '0') : 0) +
-           (flight.mostrarPrecioAdultoMochilaCarryOnValija ? parseFloat(flight.precioAdultoMochilaCarryOnValija || '0') : 0);
+           (flight.mostrarPrecioAdultoMochilaBodega ? parseFloat(flight.precioAdultoMochilaBodega || '0') : 0) +
+           (showAdultoBodega ? parseFloat(precioAdultoBodega) : 0);
          const subtotalMenor =
            (flight.mostrarPrecioMenorMochila ? parseFloat(flight.precioMenorMochila || '0') : 0) +
            (flight.mostrarPrecioMenorMochilaCarryOn ? parseFloat(flight.precioMenorMochilaCarryOn || '0') : 0) +
-           (flight.mostrarPrecioMenorMochilaCarryOnValija ? parseFloat(flight.precioMenorMochilaCarryOnValija || '0') : 0);
+           (flight.mostrarPrecioMenorMochilaBodega ? parseFloat(flight.precioMenorMochilaBodega || '0') : 0) +
+           (showMenorBodega ? parseFloat(precioMenorBodega) : 0);
          const subtotalInfante = (flight.mostrarPrecioInfante && flight.precioInfante) ? parseFloat(flight.precioInfante) : 0;
          
          flightTotal = (subtotalAdulto * (clientData.cantidadAdultos || 0)) + 
@@ -852,10 +860,20 @@ export default function TravelQuoteGenerator() {
               pasajero: "adulto",
             })
           }
-          if (flight.precioAdultoMochilaCarryOnValija && flight.mostrarPrecioAdultoMochilaCarryOnValija) {
+          if (flight.precioAdultoMochilaBodega && flight.mostrarPrecioAdultoMochilaBodega) {
             opciones.push({
-              tipo: "mochilaCarryOnValija",
-              precio: Number.parseFloat(flight.precioAdultoMochilaCarryOnValija) || 0,
+              tipo: "mochilaBodega",
+              precio: Number.parseFloat(flight.precioAdultoMochilaBodega) || 0,
+              pasajero: "adulto",
+            })
+          }
+          // Compatibilidad: usar nuevos campos o legacy
+          const precioAdultoBodega = flight.precioAdultoMochilaCarryOnBodega || flight.precioAdultoMochilaCarryOnValija
+          const mostrarAdultoBodega = flight.mostrarPrecioAdultoMochilaCarryOnBodega ?? flight.mostrarPrecioAdultoMochilaCarryOnValija
+          if (precioAdultoBodega && mostrarAdultoBodega) {
+            opciones.push({
+              tipo: "mochilaCarryOnBodega",
+              precio: Number.parseFloat(precioAdultoBodega) || 0,
               pasajero: "adulto",
             })
           }
@@ -877,10 +895,20 @@ export default function TravelQuoteGenerator() {
               pasajero: "menor",
             })
           }
-          if (flight.precioMenorMochilaCarryOnValija && flight.mostrarPrecioMenorMochilaCarryOnValija) {
+          if (flight.precioMenorMochilaBodega && flight.mostrarPrecioMenorMochilaBodega) {
             opciones.push({
-              tipo: "mochilaCarryOnValija",
-              precio: Number.parseFloat(flight.precioMenorMochilaCarryOnValija) || 0,
+              tipo: "mochilaBodega",
+              precio: Number.parseFloat(flight.precioMenorMochilaBodega) || 0,
+              pasajero: "menor",
+            })
+          }
+          // Compatibilidad: usar nuevos campos o legacy
+          const precioMenorBodega = flight.precioMenorMochilaCarryOnBodega || flight.precioMenorMochilaCarryOnValija
+          const mostrarMenorBodega = flight.mostrarPrecioMenorMochilaCarryOnBodega ?? flight.mostrarPrecioMenorMochilaCarryOnValija
+          if (precioMenorBodega && mostrarMenorBodega) {
+            opciones.push({
+              tipo: "mochilaCarryOnBodega",
+              precio: Number.parseFloat(precioMenorBodega) || 0,
               pasajero: "menor",
             })
           }

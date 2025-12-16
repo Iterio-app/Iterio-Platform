@@ -240,7 +240,7 @@ export const SummaryContent: React.FC<FormDataProps> = ({ formData }) => {
                       </div>
                     )}
                     {/* Precios Adultos */}
-                    {((vuelo.mostrarPrecioAdultoMochila && vuelo.precioAdultoMochila) || (vuelo.mostrarPrecioAdultoMochilaCarryOn && vuelo.precioAdultoMochilaCarryOn) || (vuelo.mostrarPrecioAdultoMochilaCarryOnValija && vuelo.precioAdultoMochilaCarryOnValija)) && (
+                    {((vuelo.mostrarPrecioAdultoMochila && vuelo.precioAdultoMochila) || (vuelo.mostrarPrecioAdultoMochilaCarryOn && vuelo.precioAdultoMochilaCarryOn) || (vuelo.mostrarPrecioAdultoMochilaBodega && vuelo.precioAdultoMochilaBodega) || ((vuelo.mostrarPrecioAdultoMochilaCarryOnBodega ?? vuelo.mostrarPrecioAdultoMochilaCarryOnValija) && (vuelo.precioAdultoMochilaCarryOnBodega || vuelo.precioAdultoMochilaCarryOnValija))) && (
                       <div className="space-y-1">
                         <div className="text-sm text-gray-700 font-medium">Precios Adultos:</div>
                         <div className="ml-4 space-y-1">
@@ -254,16 +254,21 @@ export const SummaryContent: React.FC<FormDataProps> = ({ formData }) => {
                               <span className="font-medium">• Mochila + Carry On:</span> {getCurrencySymbol(vuelo.useCustomCurrency ? vuelo.currency : formData.selectedCurrency)} {vuelo.precioAdultoMochilaCarryOn}
                             </div>
                           )}
-                          {vuelo.mostrarPrecioAdultoMochilaCarryOnValija && vuelo.precioAdultoMochilaCarryOnValija && (
+                          {vuelo.mostrarPrecioAdultoMochilaBodega && vuelo.precioAdultoMochilaBodega && (
                             <div className="text-xs text-gray-600">
-                              <span className="font-medium">• Mochila + Carry On + Valija 23kg:</span> {getCurrencySymbol(vuelo.useCustomCurrency ? vuelo.currency : formData.selectedCurrency)} {vuelo.precioAdultoMochilaCarryOnValija}
+                              <span className="font-medium">• Mochila + Bodega:</span> {getCurrencySymbol(vuelo.useCustomCurrency ? vuelo.currency : formData.selectedCurrency)} {vuelo.precioAdultoMochilaBodega}
+                            </div>
+                          )}
+                          {(vuelo.mostrarPrecioAdultoMochilaCarryOnBodega ?? vuelo.mostrarPrecioAdultoMochilaCarryOnValija) && (vuelo.precioAdultoMochilaCarryOnBodega || vuelo.precioAdultoMochilaCarryOnValija) && (
+                            <div className="text-xs text-gray-600">
+                              <span className="font-medium">• Mochila + Carry On + Bodega:</span> {getCurrencySymbol(vuelo.useCustomCurrency ? vuelo.currency : formData.selectedCurrency)} {vuelo.precioAdultoMochilaCarryOnBodega || vuelo.precioAdultoMochilaCarryOnValija}
                             </div>
                           )}
                         </div>
                       </div>
                     )}
                     {/* Precios Menores */}
-                    {((vuelo.mostrarPrecioMenorMochila && vuelo.precioMenorMochila) || (vuelo.mostrarPrecioMenorMochilaCarryOn && vuelo.precioMenorMochilaCarryOn) || (vuelo.mostrarPrecioMenorMochilaCarryOnValija && vuelo.precioMenorMochilaCarryOnValija)) && (
+                    {((vuelo.mostrarPrecioMenorMochila && vuelo.precioMenorMochila) || (vuelo.mostrarPrecioMenorMochilaCarryOn && vuelo.precioMenorMochilaCarryOn) || (vuelo.mostrarPrecioMenorMochilaBodega && vuelo.precioMenorMochilaBodega) || ((vuelo.mostrarPrecioMenorMochilaCarryOnBodega ?? vuelo.mostrarPrecioMenorMochilaCarryOnValija) && (vuelo.precioMenorMochilaCarryOnBodega || vuelo.precioMenorMochilaCarryOnValija))) && (
                       <div className="space-y-1">
                         <div className="text-sm text-gray-700 font-medium">Precios Menores:</div>
                         <div className="ml-4 space-y-1">
@@ -277,9 +282,14 @@ export const SummaryContent: React.FC<FormDataProps> = ({ formData }) => {
                               <span className="font-medium">• Mochila + Carry On:</span> {getCurrencySymbol(vuelo.useCustomCurrency ? vuelo.currency : formData.selectedCurrency)} {vuelo.precioMenorMochilaCarryOn}
                             </div>
                           )}
-                          {vuelo.mostrarPrecioMenorMochilaCarryOnValija && vuelo.precioMenorMochilaCarryOnValija && (
+                          {vuelo.mostrarPrecioMenorMochilaBodega && vuelo.precioMenorMochilaBodega && (
                             <div className="text-xs text-gray-600">
-                              <span className="font-medium">• Mochila + Carry On + Valija 23kg:</span> {getCurrencySymbol(vuelo.useCustomCurrency ? vuelo.currency : formData.selectedCurrency)} {vuelo.precioMenorMochilaCarryOnValija}
+                              <span className="font-medium">• Mochila + Bodega:</span> {getCurrencySymbol(vuelo.useCustomCurrency ? vuelo.currency : formData.selectedCurrency)} {vuelo.precioMenorMochilaBodega}
+                            </div>
+                          )}
+                          {(vuelo.mostrarPrecioMenorMochilaCarryOnBodega ?? vuelo.mostrarPrecioMenorMochilaCarryOnValija) && (vuelo.precioMenorMochilaCarryOnBodega || vuelo.precioMenorMochilaCarryOnValija) && (
+                            <div className="text-xs text-gray-600">
+                              <span className="font-medium">• Mochila + Carry On + Bodega:</span> {getCurrencySymbol(vuelo.useCustomCurrency ? vuelo.currency : formData.selectedCurrency)} {vuelo.precioMenorMochilaCarryOnBodega || vuelo.precioMenorMochilaCarryOnValija}
                             </div>
                           )}
                         </div>

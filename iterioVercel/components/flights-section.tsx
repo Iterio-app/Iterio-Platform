@@ -21,17 +21,21 @@ interface Flight {
   // Precios por adulto
   precioAdultoMochila: string
   precioAdultoMochilaCarryOn: string
-  precioAdultoMochilaCarryOnValija: string
+  precioAdultoMochilaBodega: string
+  precioAdultoMochilaCarryOnBodega: string
   mostrarPrecioAdultoMochila: boolean
   mostrarPrecioAdultoMochilaCarryOn: boolean
-  mostrarPrecioAdultoMochilaCarryOnValija: boolean
+  mostrarPrecioAdultoMochilaBodega: boolean
+  mostrarPrecioAdultoMochilaCarryOnBodega: boolean
   // Precios por menor
   precioMenorMochila: string
   precioMenorMochilaCarryOn: string
-  precioMenorMochilaCarryOnValija: string
+  precioMenorMochilaBodega: string
+  precioMenorMochilaCarryOnBodega: string
   mostrarPrecioMenorMochila: boolean
   mostrarPrecioMenorMochilaCarryOn: boolean
-  mostrarPrecioMenorMochilaCarryOnValija: boolean
+  mostrarPrecioMenorMochilaBodega: boolean
+  mostrarPrecioMenorMochilaCarryOnBodega: boolean
   // Precio por infante (tarifa única)
   precioInfante: string
   mostrarPrecioInfante: boolean
@@ -39,8 +43,13 @@ interface Flight {
   requisitosMigratorios: string[]
   textoLibre: string
   destino?: string
-  useCustomCurrency?: boolean // nueva prop
-  currency?: string // nueva prop
+  useCustomCurrency?: boolean
+  currency?: string
+  // Campos legacy para compatibilidad con cotizaciones antiguas
+  precioAdultoMochilaCarryOnValija?: string
+  precioMenorMochilaCarryOnValija?: string
+  mostrarPrecioAdultoMochilaCarryOnValija?: boolean
+  mostrarPrecioMenorMochilaCarryOnValija?: boolean
 }
 
 interface FlightsSectionProps {
@@ -91,25 +100,29 @@ export default function FlightsSection({ flights, onChange, clientData, selected
       // Adultos
       precioAdultoMochila: "",
       precioAdultoMochilaCarryOn: "",
-      precioAdultoMochilaCarryOnValija: "",
+      precioAdultoMochilaBodega: "",
+      precioAdultoMochilaCarryOnBodega: "",
       mostrarPrecioAdultoMochila: true,
       mostrarPrecioAdultoMochilaCarryOn: true,
-      mostrarPrecioAdultoMochilaCarryOnValija: true,
+      mostrarPrecioAdultoMochilaBodega: true,
+      mostrarPrecioAdultoMochilaCarryOnBodega: true,
       // Menores
       precioMenorMochila: "",
       precioMenorMochilaCarryOn: "",
-      precioMenorMochilaCarryOnValija: "",
+      precioMenorMochilaBodega: "",
+      precioMenorMochilaCarryOnBodega: "",
       mostrarPrecioMenorMochila: true,
       mostrarPrecioMenorMochilaCarryOn: true,
-      mostrarPrecioMenorMochilaCarryOnValija: true,
+      mostrarPrecioMenorMochilaBodega: true,
+      mostrarPrecioMenorMochilaCarryOnBodega: true,
       // Infantes
       precioInfante: "",
       mostrarPrecioInfante: true,
       condicionesTarifa: [],
       requisitosMigratorios: [],
       textoLibre: "",
-      useCustomCurrency: false, // Default to false
-      currency: selectedCurrency, // Default to global currency
+      useCustomCurrency: false,
+      currency: selectedCurrency,
     }
     onChange([...flights, newFlight])
   }
@@ -307,7 +320,7 @@ export default function FlightsSection({ flights, onChange, clientData, selected
                   {clientData.cantidadAdultos > 0 && (
                     <div className="border rounded-lg p-4">
                       <h4 className="font-medium text-blue-600 mb-3">Adultos ({clientData.cantidadAdultos})</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <div className="flex items-center space-x-2">
                             <input
@@ -365,26 +378,53 @@ export default function FlightsSection({ flights, onChange, clientData, selected
                         <div className="space-y-2">
                           <div className="flex items-center space-x-2">
                             <input
-                              id={`mostrarAdultoMochilaCarryOnValija-${flight.id}`}
+                              id={`mostrarAdultoMochilaBodega-${flight.id}`}
                               type="checkbox"
-                              checked={flight.mostrarPrecioAdultoMochilaCarryOnValija}
+                              checked={flight.mostrarPrecioAdultoMochilaBodega}
                               onChange={(e) =>
-                                updateFlight(flight.id, "mostrarPrecioAdultoMochilaCarryOnValija", e.target.checked)
+                                updateFlight(flight.id, "mostrarPrecioAdultoMochilaBodega", e.target.checked)
                               }
                               className="accent-blue-600 h-4 w-4"
                             />
-                            <Label htmlFor={`mostrarAdultoMochilaCarryOnValija-${flight.id}`} className="text-sm">
+                            <Label htmlFor={`mostrarAdultoMochilaBodega-${flight.id}`} className="text-sm">
                               Mostrar en PDF
                             </Label>
                           </div>
-                          <Label htmlFor={`precioAdultoMochilaCarryOnValija-${flight.id}`}>
-                            Mochila + Carry On + Valija 23kg
+                          <Label htmlFor={`precioAdultoMochilaBodega-${flight.id}`}>Mochila + Bodega</Label>
+                          <Input
+                            id={`precioAdultoMochilaBodega-${flight.id}`}
+                            value={flight.precioAdultoMochilaBodega}
+                            onChange={(e) => updateFlight(flight.id, "precioAdultoMochilaBodega", e.target.value)}
+                            placeholder="0.00"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              id={`mostrarAdultoMochilaCarryOnBodega-${flight.id}`}
+                              type="checkbox"
+                              checked={flight.mostrarPrecioAdultoMochilaCarryOnBodega}
+                              onChange={(e) =>
+                                updateFlight(flight.id, "mostrarPrecioAdultoMochilaCarryOnBodega", e.target.checked)
+                              }
+                              className="accent-blue-600 h-4 w-4"
+                            />
+                            <Label htmlFor={`mostrarAdultoMochilaCarryOnBodega-${flight.id}`} className="text-sm">
+                              Mostrar en PDF
+                            </Label>
+                          </div>
+                          <Label htmlFor={`precioAdultoMochilaCarryOnBodega-${flight.id}`}>
+                            Mochila + Carry On + Bodega
                           </Label>
                           <Input
-                            id={`precioAdultoMochilaCarryOnValija-${flight.id}`}
-                            value={flight.precioAdultoMochilaCarryOnValija}
+                            id={`precioAdultoMochilaCarryOnBodega-${flight.id}`}
+                            value={flight.precioAdultoMochilaCarryOnBodega}
                             onChange={(e) =>
-                              updateFlight(flight.id, "precioAdultoMochilaCarryOnValija", e.target.value)
+                              updateFlight(flight.id, "precioAdultoMochilaCarryOnBodega", e.target.value)
                             }
                             placeholder="0.00"
                             type="number"
@@ -400,7 +440,7 @@ export default function FlightsSection({ flights, onChange, clientData, selected
                   {clientData.cantidadMenores > 0 && (
                     <div className="border rounded-lg p-4">
                       <h4 className="font-medium text-green-600 mb-3">Menores ({clientData.cantidadMenores})</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <div className="flex items-center space-x-2">
                             <input
@@ -458,25 +498,52 @@ export default function FlightsSection({ flights, onChange, clientData, selected
                         <div className="space-y-2">
                           <div className="flex items-center space-x-2">
                             <input
-                              id={`mostrarMenorMochilaCarryOnValija-${flight.id}`}
+                              id={`mostrarMenorMochilaBodega-${flight.id}`}
                               type="checkbox"
-                              checked={flight.mostrarPrecioMenorMochilaCarryOnValija}
+                              checked={flight.mostrarPrecioMenorMochilaBodega}
                               onChange={(e) =>
-                                updateFlight(flight.id, "mostrarPrecioMenorMochilaCarryOnValija", e.target.checked)
+                                updateFlight(flight.id, "mostrarPrecioMenorMochilaBodega", e.target.checked)
                               }
                               className="accent-blue-600 h-4 w-4"
                             />
-                            <Label htmlFor={`mostrarMenorMochilaCarryOnValija-${flight.id}`} className="text-sm">
+                            <Label htmlFor={`mostrarMenorMochilaBodega-${flight.id}`} className="text-sm">
                               Mostrar en PDF
                             </Label>
                           </div>
-                          <Label htmlFor={`precioMenorMochilaCarryOnValija-${flight.id}`}>
-                            Mochila + Carry On + Valija 23kg
+                          <Label htmlFor={`precioMenorMochilaBodega-${flight.id}`}>Mochila + Bodega</Label>
+                          <Input
+                            id={`precioMenorMochilaBodega-${flight.id}`}
+                            value={flight.precioMenorMochilaBodega}
+                            onChange={(e) => updateFlight(flight.id, "precioMenorMochilaBodega", e.target.value)}
+                            placeholder="0.00"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              id={`mostrarMenorMochilaCarryOnBodega-${flight.id}`}
+                              type="checkbox"
+                              checked={flight.mostrarPrecioMenorMochilaCarryOnBodega}
+                              onChange={(e) =>
+                                updateFlight(flight.id, "mostrarPrecioMenorMochilaCarryOnBodega", e.target.checked)
+                              }
+                              className="accent-blue-600 h-4 w-4"
+                            />
+                            <Label htmlFor={`mostrarMenorMochilaCarryOnBodega-${flight.id}`} className="text-sm">
+                              Mostrar en PDF
+                            </Label>
+                          </div>
+                          <Label htmlFor={`precioMenorMochilaCarryOnBodega-${flight.id}`}>
+                            Mochila + Carry On + Bodega
                           </Label>
                           <Input
-                            id={`precioMenorMochilaCarryOnValija-${flight.id}`}
-                            value={flight.precioMenorMochilaCarryOnValija}
-                            onChange={(e) => updateFlight(flight.id, "precioMenorMochilaCarryOnValija", e.target.value)}
+                            id={`precioMenorMochilaCarryOnBodega-${flight.id}`}
+                            value={flight.precioMenorMochilaCarryOnBodega}
+                            onChange={(e) => updateFlight(flight.id, "precioMenorMochilaCarryOnBodega", e.target.value)}
                             placeholder="0.00"
                             type="number"
                             step="0.01"

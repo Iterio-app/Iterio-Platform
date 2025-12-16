@@ -41,7 +41,7 @@ export interface TemplateValidationError {
 const defaultTemplate: TemplateConfig = {
   primaryColor: "#2563eb",
   secondaryColor: "#64748b",
-  fontFamily: "Inter",
+  fontFamily: "Roboto",
   logo: null,
   agencyName: "Tu Agencia de Viajes",
   agencyAddress: "Dirección de la agencia",

@@ -148,7 +148,8 @@ export const HelpContent: React.FC<HelpContentProps> = ({ formData }) => {
           // Verificar que haya al menos un precio configurado para adultos
           const hasAdultPrice = flight.mostrarPrecioAdultoMochila && flight.precioAdultoMochila?.trim() ||
                                flight.mostrarPrecioAdultoMochilaCarryOn && flight.precioAdultoMochilaCarryOn?.trim() ||
-                               flight.mostrarPrecioAdultoMochilaCarryOnValija && flight.precioAdultoMochilaCarryOnValija?.trim()
+                               flight.mostrarPrecioAdultoMochilaBodega && flight.precioAdultoMochilaBodega?.trim() ||
+                               (flight.mostrarPrecioAdultoMochilaCarryOnBodega ?? flight.mostrarPrecioAdultoMochilaCarryOnValija) && (flight.precioAdultoMochilaCarryOnBodega?.trim() || flight.precioAdultoMochilaCarryOnValija?.trim())
           
           return !hasAdultPrice
         }
@@ -172,7 +173,8 @@ export const HelpContent: React.FC<HelpContentProps> = ({ formData }) => {
           // Verificar que haya al menos un precio configurado para menores
           const hasMinorPrice = flight.mostrarPrecioMenorMochila && flight.precioMenorMochila?.trim() ||
                                flight.mostrarPrecioMenorMochilaCarryOn && flight.precioMenorMochilaCarryOn?.trim() ||
-                               flight.mostrarPrecioMenorMochilaCarryOnValija && flight.precioMenorMochilaCarryOnValija?.trim()
+                               flight.mostrarPrecioMenorMochilaBodega && flight.precioMenorMochilaBodega?.trim() ||
+                               (flight.mostrarPrecioMenorMochilaCarryOnBodega ?? flight.mostrarPrecioMenorMochilaCarryOnValija) && (flight.precioMenorMochilaCarryOnBodega?.trim() || flight.precioMenorMochilaCarryOnValija?.trim())
           
           return !hasMinorPrice
         }
@@ -219,7 +221,8 @@ export const HelpContent: React.FC<HelpContentProps> = ({ formData }) => {
           const adultPrices = [
             { price: flight.precioAdultoMochila, show: flight.mostrarPrecioAdultoMochila },
             { price: flight.precioAdultoMochilaCarryOn, show: flight.mostrarPrecioAdultoMochilaCarryOn },
-            { price: flight.precioAdultoMochilaCarryOnValija, show: flight.mostrarPrecioAdultoMochilaCarryOnValija }
+            { price: flight.precioAdultoMochilaBodega, show: flight.mostrarPrecioAdultoMochilaBodega },
+            { price: flight.precioAdultoMochilaCarryOnBodega || flight.precioAdultoMochilaCarryOnValija, show: flight.mostrarPrecioAdultoMochilaCarryOnBodega ?? flight.mostrarPrecioAdultoMochilaCarryOnValija }
           ].filter(item => item.show && item.price)
           return adultPrices.length > 0 && adultPrices.every(item => Number(item.price) <= 0)
         }
@@ -243,7 +246,8 @@ export const HelpContent: React.FC<HelpContentProps> = ({ formData }) => {
           const minorPrices = [
             { price: flight.precioMenorMochila, show: flight.mostrarPrecioMenorMochila },
             { price: flight.precioMenorMochilaCarryOn, show: flight.mostrarPrecioMenorMochilaCarryOn },
-            { price: flight.precioMenorMochilaCarryOnValija, show: flight.mostrarPrecioMenorMochilaCarryOnValija }
+            { price: flight.precioMenorMochilaBodega, show: flight.mostrarPrecioMenorMochilaBodega },
+            { price: flight.precioMenorMochilaCarryOnBodega || flight.precioMenorMochilaCarryOnValija, show: flight.mostrarPrecioMenorMochilaCarryOnBodega ?? flight.mostrarPrecioMenorMochilaCarryOnValija }
           ].filter(item => item.show && item.price)
           return minorPrices.length > 0 && minorPrices.every(item => Number(item.price) <= 0)
         }

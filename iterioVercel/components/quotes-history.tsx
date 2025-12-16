@@ -344,7 +344,7 @@ export default function QuotesHistory({ user, onLoadQuote, onCreateNew }: Quotes
             ...(quote.template_data || {
               primaryColor: '#2563eb',
               secondaryColor: '#64748b',
-              fontFamily: 'Inter',
+              fontFamily: 'Roboto',
               logo: null,
               agencyName: 'Tu Agencia de Viajes',
               agencyAddress: 'Dirección de la agencia',

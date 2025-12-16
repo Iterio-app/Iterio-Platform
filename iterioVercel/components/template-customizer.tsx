@@ -213,11 +213,16 @@ export default function TemplateCustomizer({ template, onTemplateChange }: Templ
                   <SelectValue placeholder="Selecciona una fuente" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Inter">Inter (Moderna)</SelectItem>
-                  <SelectItem value="Arial">Arial (Clásica)</SelectItem>
-                  <SelectItem value="Helvetica">Helvetica (Profesional)</SelectItem>
-                  <SelectItem value="Georgia">Georgia (Elegante)</SelectItem>
-                  <SelectItem value="Times New Roman">Times New Roman (Tradicional)</SelectItem>
+                  <SelectItem value="Roboto">Roboto (Moderna)</SelectItem>
+                  <SelectItem value="Open Sans">Open Sans (Limpia)</SelectItem>
+                  <SelectItem value="Montserrat">Montserrat (Elegante)</SelectItem>
+                  <SelectItem value="Poppins">Poppins (Contemporánea)</SelectItem>
+                  <SelectItem value="Lato">Lato (Profesional)</SelectItem>
+                  <SelectItem value="Playfair Display">Playfair Display (Clásica)</SelectItem>
+                  <SelectItem value="Raleway">Raleway (Minimalista)</SelectItem>
+                  <SelectItem value="Nunito">Nunito (Amigable)</SelectItem>
+                  <SelectItem value="Merriweather">Merriweather (Tradicional)</SelectItem>
+                  <SelectItem value="Ubuntu">Ubuntu (Técnica)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
