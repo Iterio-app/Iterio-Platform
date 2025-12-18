@@ -245,10 +245,6 @@ export default function UserMenu({
             <Settings className="h-4 w-4 mr-2" />
             Editar Perfil
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={goToCreateQuote}>
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Crear Cotización
-          </DropdownMenuItem>
           <DropdownMenuItem onClick={goToHistory}>
             <ListChecks className="h-4 w-4 mr-2" />
             Mis Cotizaciones

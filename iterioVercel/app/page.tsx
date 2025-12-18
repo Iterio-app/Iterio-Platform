@@ -1527,7 +1527,7 @@ export default function TravelQuoteGenerator() {
       await loadTemplateById(tpl.id);
     }
     setShowTemplateSelectModal(false);
-    setActiveTab('customize');
+    setActiveTab('form');
   };
 
   // Handler para template temporal
@@ -1639,8 +1639,8 @@ export default function TravelQuoteGenerator() {
         </div>
         {/* Fin bloque de bienvenida */}
 
-        {/* Botón flotante siempre visible excepto en 'form' y 'admin' */}
-        {!pathname.startsWith('/admin') && activeTab !== 'form' && (
+        {/* Botón flotante solo visible en 'history' */}
+        {activeTab === 'history' && (
           <FloatingNewQuoteButton
             onSelect={handleNewQuoteMode}
           />
