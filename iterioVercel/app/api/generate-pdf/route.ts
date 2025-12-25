@@ -1043,6 +1043,16 @@ body {
           `
                 : ""
             }
+            ${
+              crucero.observaciones
+                ? `
+            <div class="observations" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid ${template.primaryColor};">
+              <h4 style="color: ${template.primaryColor}; margin: 0 0 5px 0; font-size: 14px;">Observaciones:</h4>
+              <p style="margin: 0; font-size: 13px; color: #4a5568;">${crucero.observaciones.replace(/\n/g, "<br>")}</p>
+            </div>
+          `
+                : ""
+            }
           </div>
         `,
           )

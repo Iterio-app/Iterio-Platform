@@ -23,6 +23,31 @@ const formSchema = z.object({
   fullName: z.string().min(2, "El nombre debe tener al menos 2 caracteres")
 })
 
+// Función para traducir errores de Supabase Auth al español
+const translateAuthError = (errorMessage: string): string => {
+  const errorTranslations: Record<string, string> = {
+    'invalid login credentials': 'Credenciales inválidas. Verifica tu email y contraseña.',
+    'invalid_credentials': 'Credenciales inválidas. Verifica tu email y contraseña.',
+    'email not confirmed': 'Debes confirmar tu email antes de poder ingresar. Revisa tu bandeja de entrada.',
+    'user not found': 'No existe una cuenta con este email.',
+    'invalid password': 'Contraseña incorrecta.',
+    'too many requests': 'Demasiados intentos. Por favor, espera unos minutos antes de intentar nuevamente.',
+    'email already registered': 'Este email ya está registrado. Intenta iniciar sesión.',
+    'signup disabled': 'El registro está deshabilitado temporalmente.',
+    'password should be at least': 'La contraseña debe tener al menos 6 caracteres.',
+    'unable to validate email address': 'El email ingresado no es válido.',
+    'network': 'Error de conexión. Verifica tu internet e intenta nuevamente.',
+  }
+  
+  const lowerMessage = errorMessage.toLowerCase()
+  for (const [key, translation] of Object.entries(errorTranslations)) {
+    if (lowerMessage.includes(key.toLowerCase())) {
+      return translation
+    }
+  }
+  return 'Error en la autenticación. Por favor, intenta nuevamente.'
+}
+
 export function LoginForm({ setView }: LoginFormProps) {
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState("")
@@ -63,11 +88,7 @@ export function LoginForm({ setView }: LoginFormProps) {
         })
 
         if (error) {
-          if (error.message.toLowerCase().includes('email not confirmed')) {
-            setError('Debes confirmar tu email antes de poder ingresar. Por favor, revisa tu bandeja de entrada.');
-          } else {
-            setError(error.message || "Error en la autenticación");
-          }
+          setError(translateAuthError(error.message));
           return;
         }
         const user = data.user

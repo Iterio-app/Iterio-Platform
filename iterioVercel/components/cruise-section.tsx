@@ -22,6 +22,7 @@ interface Cruise {
   imagenes: string[]
   useCustomCurrency?: boolean
   currency?: string
+  observaciones?: string
 }
 
 interface CruiseSectionProps {
@@ -71,6 +72,7 @@ export default function CruiseSection({ cruises, onChange, selectedCurrency, onM
       imagenes: [],
       useCustomCurrency: false,
       currency: selectedCurrency,
+      observaciones: "",
     }
     onChange([...cruises, newCruise])
     onMarkAsChanged?.()
@@ -249,6 +251,17 @@ export default function CruiseSection({ cruises, onChange, selectedCurrency, onM
                 onImagesChange={(images) => updateCruise(cruise.id, "imagenes", images)}
                 maxImages={6}
               />
+
+              <div className="space-y-2">
+                <Label htmlFor={`observaciones-${cruise.id}`}>Observaciones</Label>
+                <Textarea
+                  id={`observaciones-${cruise.id}`}
+                  value={cruise.observaciones || ""}
+                  onChange={(e) => updateCruise(cruise.id, "observaciones", e.target.value)}
+                  placeholder="Notas adicionales sobre el crucero..."
+                  rows={3}
+                />
+              </div>
             </div>
           ))
         )}

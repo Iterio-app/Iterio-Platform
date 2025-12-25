@@ -595,6 +595,11 @@ export const SummaryContent: React.FC<FormDataProps> = ({ formData }) => {
                         <span className="font-medium">Comentarios adicionales:</span> <span className="italic text-gray-600 font-normal">{cruise.textoLibre}</span>
                       </div>
                     )}
+                    {cruise.observaciones && (
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Observaciones:</span> <span className="italic text-gray-600 font-normal">{cruise.observaciones}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

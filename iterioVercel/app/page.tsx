@@ -62,7 +62,7 @@ export default function TravelQuoteGenerator() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null) // URL permanente del bucket
   const [previewUrl, setPreviewUrl] = useState<string | null>(null) // URL temporal para vista previa
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("form")
+  const [activeTab, setActiveTab] = useState("history")
   const [isDownloading, setIsDownloading] = useState(false)
   const [currentQuoteId, setCurrentQuoteId] = useState<string | null>(null)
   const [quoteTitle, setQuoteTitle] = useState("")
@@ -78,6 +78,9 @@ export default function TravelQuoteGenerator() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null)
   const [isLoadingQuote, setIsLoadingQuote] = useState(false)
+  
+  // Estado para rastrear si el flujo de cotización se inició correctamente
+  const [flowStarted, setFlowStarted] = useState(false)
   
   // Estado para el tipo de cotización (movido aquí para evitar problemas de closure)
   const [formMode, setFormMode] = useState<'flight' | 'flight_hotel' | 'full' | 'cruise'>('full');
@@ -99,6 +102,12 @@ export default function TravelQuoteGenerator() {
 
   // Estado de visibilidad del sidebar unificado
   const [showUnifiedSidebar, setShowUnifiedSidebar] = useState(true);
+
+  // Estado para trackear si se está usando un template guardado (no editable) o temporal (editable)
+  const [isUsingStoredTemplate, setIsUsingStoredTemplate] = useState(false);
+  // ID y nombre del template guardado en uso (para recargarlo y mostrarlo)
+  const [storedTemplateId, setStoredTemplateId] = useState<string | null>(null);
+  const [storedTemplateName, setStoredTemplateName] = useState<string | null>(null);
 
   // Calcular errores de ayuda y elementos del resumen
   const calculateHelpErrors = () => {
@@ -386,13 +395,25 @@ export default function TravelQuoteGenerator() {
         setHasHandledTabParam(true);
         // No limpiar el query param aquí
       } else if (tabParam === 'form') {
-        setActiveTab('form');
+        // Solo permitir acceso a form si el flujo se inició correctamente
+        if (flowStarted) {
+          setActiveTab('form');
+        } else {
+          // Redirigir a history si se intenta acceder directamente sin iniciar el flujo
+          setActiveTab('history');
+          // Actualizar URL para reflejar el cambio
+          if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', 'history');
+            window.history.replaceState({}, '', url.toString());
+          }
+        }
         setHasHandledTabParam(true);
       } else if (tabParam === 'templates') {
         setActiveTab('templates');
         setHasHandledTabParam(true);
       } else if (tabParam === null) {
-        setActiveTab('form');
+        // No cambiar el tab - mantener el valor inicial (history)
         setHasHandledTabParam(true);
       }
     }
@@ -519,6 +540,10 @@ export default function TravelQuoteGenerator() {
     setMostrarCantidadPasajeros(true);
     setHasUnsavedChanges(false)
     setLastSaved(null)
+    setIsUsingStoredTemplate(false) // Resetear al limpiar formulario
+    setStoredTemplateId(null)
+    setStoredTemplateName(null)
+    setFlowStarted(false) // Resetear flujo al limpiar formulario
   }
 
   const loadQuote = (quote: Quote) => {
@@ -601,6 +626,12 @@ export default function TravelQuoteGenerator() {
     if (quote.template_data) {
       setTemplateFromConfig(quote.template_data)
     }
+
+    // Cargar estado de template guardado vs temporal
+    // Si la cotización tiene el flag guardado, usarlo; si no, asumir que usó template guardado por defecto
+    setIsUsingStoredTemplate(quote.summary_data?.isUsingStoredTemplate ?? true)
+    setStoredTemplateId(quote.summary_data?.storedTemplateId ?? null)
+    setStoredTemplateName(quote.summary_data?.storedTemplateName ?? null)
 
     setCurrentQuoteId(quote.id)
     setQuoteTitle(quote.title)
@@ -749,7 +780,7 @@ export default function TravelQuoteGenerator() {
         transfers_data: transfers,
         services_data: services,
         cruises_data: cleanCruises,
-        summary_data: { ...summaryData, currency: selectedCurrency, mostrarCantidadPasajeros, formMode: currentFormMode, totalesPorMoneda },
+        summary_data: { ...summaryData, currency: selectedCurrency, mostrarCantidadPasajeros, formMode: currentFormMode, totalesPorMoneda, isUsingStoredTemplate, storedTemplateId, storedTemplateName },
         template_data: template,
         total_amount: Number(summaryData.total) || 0,
         client_name: clientName,
@@ -1058,6 +1089,24 @@ export default function TravelQuoteGenerator() {
     setProcessingStatus({ step: "Preparando datos...", progress: 20 })
 
     try {
+      // Si usa template guardado, recargar los datos más recientes del template
+      let templateToUse = template;
+      console.log(`🎨 [generatePdf] Template inicial:`, template);
+      console.log(`🔍 [generatePdf] isUsingStoredTemplate: ${isUsingStoredTemplate}, storedTemplateId: ${storedTemplateId}`);
+      
+      if (isUsingStoredTemplate && storedTemplateId) {
+        setProcessingStatus({ step: "Cargando template actualizado...", progress: 30 })
+        console.log(`📥 [generatePdf] Cargando template ${storedTemplateId}...`);
+        const freshTemplate = await loadTemplateById(storedTemplateId);
+        if (freshTemplate?.template_data) {
+          templateToUse = freshTemplate.template_data;
+          updateTemplate(freshTemplate.template_data); // Actualizar también el estado local
+          console.log(`✅ [generatePdf] Template actualizado:`, templateToUse);
+        } else {
+          console.warn(`⚠️ [generatePdf] No se pudo cargar el template ${storedTemplateId}`);
+        }
+      }
+
       // Guardar cotización antes de generar PDF
       await saveCurrentQuote()
 
@@ -1073,9 +1122,33 @@ export default function TravelQuoteGenerator() {
         },
         body: JSON.stringify({
           data: quoteData,
-          template: template,
+          template: templateToUse,
         }),
-      })
+      });
+      
+      console.log(`📤 [generatePdf] Enviando al API:`, {
+        templateName: templateToUse?.agencyName || 'Temporal',
+        primaryColor: templateToUse?.primaryColor,
+        hasLogo: !!templateToUse?.logo
+      });
+      
+      // Guardar log en localStorage para debugging
+      if (typeof window !== 'undefined') {
+        const pdfDebugLog = {
+          timestamp: new Date().toISOString(),
+          userId: user?.id,
+          action: 'pdf_generation',
+          templateUsed: {
+            name: templateToUse?.agencyName || 'Temporal',
+            primaryColor: templateToUse?.primaryColor,
+            hasLogo: !!templateToUse?.logo,
+            isDefault: templateToUse?.agencyName === 'Tu Agencia de Viajes'
+          },
+          isUsingStoredTemplate,
+          storedTemplateId
+        };
+        localStorage.setItem('pdf_debug_log', JSON.stringify(pdfDebugLog));
+      }
 
       if (!pdfResponse.ok) {
         throw new Error("Error al generar la vista previa")
@@ -1526,17 +1599,37 @@ export default function TravelQuoteGenerator() {
     } else {
       await loadTemplateById(tpl.id);
     }
+    setIsUsingStoredTemplate(true); // Marcar que se usa template guardado (no editable)
+    setStoredTemplateId(tpl.id); // Guardar ID para recargar cambios del template
+    setStoredTemplateName(tpl.name); // Guardar nombre para mostrar al usuario
     setShowTemplateSelectModal(false);
+    setFlowStarted(true); // Marcar que el flujo se inició correctamente
     setActiveTab('form');
+    setFormStep(0); // Ir al primer paso del formulario
   };
 
   // Handler para template temporal
   const handleUseTempTemplate = () => {
-    updateTemplate({}); // Limpiar para template temporal
+    // Inicializar template con valores por defecto para edición
+    updateTemplate({
+      primaryColor: "#2563eb",
+      secondaryColor: "#64748b",
+      fontFamily: "Roboto",
+      logo: null,
+      agencyName: "Tu Agencia de Viajes",
+      agencyAddress: "Dirección de la agencia",
+      agencyPhone: "+1 234 567 8900",
+      agencyEmail: "info@tuagencia.com",
+      validityText: "Esta cotización es válida por 15 días desde la fecha de emisión.",
+    });
+    setIsUsingStoredTemplate(false); // Marcar que se usa template temporal (editable)
+    setStoredTemplateId(null); // Limpiar ID de template
+    setStoredTemplateName(null); // Limpiar nombre de template
     setShowTemplateSelectModal(false);
-    // IMPORTANTE: NO sobrescribir formMode, mantener el que eligió el usuario en el botón flotante
-    // Solo cambiar de tab
+    setFlowStarted(true); // Marcar que el flujo se inició correctamente
+    // Ir al tab de personalización para que pueda editar el template
     setActiveTab('customize');
+    setFormStep(0); // Asegurar que el formulario empiece en el paso 0
   };
 
   // Handler para ir a Mis Templates
@@ -1550,6 +1643,7 @@ export default function TravelQuoteGenerator() {
     clearForm();
     setFormMode(mode);
     formModeRef.current = mode; // Actualizar ref inmediatamente para evitar problemas de timing
+    setFlowStarted(true); // Marcar que el flujo se inició correctamente
     setShowTemplateSelectModal(true);
     await fetchTemplates();
   };
@@ -1557,6 +1651,7 @@ export default function TravelQuoteGenerator() {
   // 1. Agregar un estado para mostrar la vista previa
   const [showPreview, setShowPreview] = useState(false);
 
+// ...
   // Estado para saber si el PDF existe
   const [pdfExists, setPdfExists] = useState(true);
 
@@ -1699,6 +1794,7 @@ export default function TravelQuoteGenerator() {
                     variant="outline" 
                     onClick={() => {
                       setShowTemplateSelectModal(false);
+                      setFlowStarted(true); // Marcar que el flujo se inició
                       setActiveTab('form');
                     }}
                   >
@@ -1720,8 +1816,14 @@ export default function TravelQuoteGenerator() {
                   ? formStep + 1 // +1 porque el paso 0 es Personalizar
                   : wizardStepIndex
               }
+              disabledSteps={isUsingStoredTemplate ? [0] : []} // Deshabilitar paso 0 si usa template guardado
               onStepClick={(idx) => {
-                if (idx === 0) setActiveTab('customize');
+                // Si es el paso 0 (Personalizar), solo permitir si NO es template guardado
+                if (idx === 0) {
+                  if (!isUsingStoredTemplate) {
+                    setActiveTab('customize');
+                  }
+                }
                 else if (idx >= 1 && idx <= 3) { setActiveTab('form'); setFormStep(idx - 1); }
                 else if (idx === 4) setActiveTab('result');
               }}
@@ -1729,9 +1831,23 @@ export default function TravelQuoteGenerator() {
             <Tabs value={activeTab} onValueChange={(tab: string) => {
               setActiveTab(tab);
               if (tab === "form") setFormStep(0);
+              if (tab === "history") {
+                // Resetear el flujo cuando se vuelve a history manualmente
+                setFlowStarted(false);
+              }
             }} className="space-y-6">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="customize">Personalizar</TabsTrigger>
+                <TabsTrigger 
+                  value="customize" 
+                  disabled={isUsingStoredTemplate}
+                  className={isUsingStoredTemplate ? "opacity-50 cursor-not-allowed" : ""}
+                  title={isUsingStoredTemplate ? "No puedes editar un template guardado. Para modificarlo, ve a 'Mis Templates'." : "Personalizar template"}
+                >
+                  Personalizar
+                  {isUsingStoredTemplate && (
+                    <span className="ml-1 text-xs">🔒</span>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="form" className="relative">
                   Crear Cotización
                   {hasUnsavedChanges && (
@@ -1747,11 +1863,48 @@ export default function TravelQuoteGenerator() {
                 <TemplateCustomizer template={template} onTemplateChange={updateTemplate} />
               </TabsContent>
               <TabsContent value="form" className="space-y-6">
-                <SaveStatusIndicator 
-                  isSaving={isSaving}
-                  lastSaved={lastSaved}
-                  hasUnsavedChanges={hasUnsavedChanges}
-                />
+                {/* Indicadores de estado: Template en uso (izquierda) + Autoguardado (centro) */}
+                <div className="w-full flex items-center">
+                  {/* Indicador del template en uso - Fijo a la izquierda */}
+                  <div className="flex-shrink-0">
+                    {isUsingStoredTemplate && storedTemplateName ? (
+                      <div className="inline-flex items-center gap-2 bg-white/80 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                        </svg>
+                        <span className="text-sm font-medium text-blue-600">
+                          Template: <span className="font-semibold">{storedTemplateName}</span>
+                        </span>
+                        <span className="text-xs text-blue-400">🔒</span>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-2 bg-white/80 border border-orange-200 rounded-lg px-3 py-1.5 shadow-sm">
+                        <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <span className="text-sm font-medium text-orange-500">
+                          Template temporal <span className="text-xs text-orange-400">(editable)</span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Indicador de autoguardado - Centrado */}
+                  <div className="flex-1 flex justify-center">
+                    <SaveStatusIndicator 
+                      isSaving={isSaving}
+                      lastSaved={lastSaved}
+                      hasUnsavedChanges={hasUnsavedChanges}
+                    />
+                  </div>
+                  
+                  {/* Espacio para balancear el layout */}
+                  <div className="flex-shrink-0 invisible">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5">
+                      <span className="text-sm">Placeholder</span>
+                    </div>
+                  </div>
+                </div>
                 
                 <div className={`grid gap-4 lg:gap-8 relative px-2 pb-4 lg:pr-0 ${featuresEnabled.sidebar && showUnifiedSidebar ? 'grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_370px]' : 'grid-cols-1'}` }>
                   <div className="min-w-0">
@@ -2020,6 +2173,7 @@ export default function TravelQuoteGenerator() {
                 onLoadQuote={loadQuote}
                 onCreateNew={() => {
                   clearForm();
+                  setFlowStarted(true);
                   setActiveTab('form');
                 }}
               />

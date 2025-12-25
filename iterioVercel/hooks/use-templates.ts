@@ -223,7 +223,7 @@ export function useTemplates(user: User | null) {
   // Retorna el template completo para uso inmediato
   const loadTemplateById = async (id: string): Promise<Template | null> => {
     try {
-      console.log(`📥 Cargando template completo: ${id}`)
+      console.log(`📥 Cargando template completo: ${id} (user: ${user?.id})`)
       
       const { data, error } = await supabase
         .from("templates")
@@ -235,9 +235,38 @@ export function useTemplates(user: User | null) {
       if (error) throw error
       
       if (data && data.template_data) {
+        console.log(`📋 Template data encontrado:`, data.template_data)
         setCurrentTemplate({ ...defaultTemplate, ...data.template_data })
-        console.log(`✅ Template completo cargado`)
+        console.log(`✅ Template completo cargado y actualizado en estado`)
+        
+        // Guardar log en localStorage para debugging
+        if (typeof window !== 'undefined') {
+          const debugLog = {
+            timestamp: new Date().toISOString(),
+            userId: user?.id,
+            templateId: id,
+            templateName: data.template_data.agencyName,
+            action: 'template_loaded_successfully',
+            templateData: data.template_data
+          };
+          localStorage.setItem('template_debug_log', JSON.stringify(debugLog));
+        }
+        
         return data as Template
+      } else {
+        console.warn(`⚠️ Template ${id} no tiene template_data`)
+        
+        // Guardar error en localStorage
+        if (typeof window !== 'undefined') {
+          const debugLog = {
+            timestamp: new Date().toISOString(),
+            userId: user?.id,
+            templateId: id,
+            action: 'template_no_data',
+            error: `Template ${id} no tiene template_data`
+          };
+          localStorage.setItem('template_debug_log', JSON.stringify(debugLog));
+        }
       }
       return null
     } catch (err: any) {
@@ -430,12 +459,14 @@ export function useTemplates(user: User | null) {
   // Establecer template directamente desde TemplateConfig (para cargar desde cotizaciones guardadas)
   const setTemplateFromConfig = (config: TemplateConfig) => {
     setCurrentTemplate({ ...defaultTemplate, ...config })
-    clearErrors()
   }
 
   // ✅ Sincronizar estado local con cache al montar
   // NO hacer fetch automático - se hará cuando el usuario vaya a la tab
   useEffect(() => {
+    // Resetear el template actual cuando cambia el usuario
+    setCurrentTemplate(defaultTemplate)
+    
     if (templatesCache.length > 0) {
       setTemplates(templatesCache)
       console.log(`📋 [useEffect] Sincronizando con cache (${templatesCache.length} templates)`)
