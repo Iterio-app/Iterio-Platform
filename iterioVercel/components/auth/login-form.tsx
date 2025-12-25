@@ -180,15 +180,22 @@ export function LoginForm({ setView }: LoginFormProps) {
 
     setIsLoading(true)
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      console.log("Enviando email de restablecimiento a:", email)
+      
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
       })
 
-      if (error) throw error
+      if (error) {
+        console.error("Error al enviar email:", error)
+        throw error
+      }
 
-      setMessage("Se ha enviado un enlace de restablecimiento a tu email")
+      console.log("Email enviado exitosamente:", data)
+      setMessage("Se ha enviado un enlace de restablecimiento a tu email. Revisa tu bandeja de entrada y carpeta de spam.")
     } catch (error: any) {
-      setError(error.message)
+      console.error("Error completo:", error)
+      setError(error.message || "No se pudo enviar el email de restablecimiento. Por favor, intenta nuevamente.")
     } finally {
       setIsLoading(false)
     }
