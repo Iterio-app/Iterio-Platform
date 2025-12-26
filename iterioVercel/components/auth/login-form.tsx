@@ -180,10 +180,36 @@ export function LoginForm({ setView }: LoginFormProps) {
 
     setIsLoading(true)
     try {
+      console.log("Verificando email:", email)
+      
+      // First check if user exists using the API
+      const checkResponse = await fetch('/api/auth/check-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      
+      const checkResult = await checkResponse.json()
+      
+      if (!checkResponse.ok || !checkResult.exists) {
+        setError(checkResult.message || "Este email no está registrado en nuestro sistema.")
+        return
+      }
+      
+      if (!checkResult.emailConfirmed) {
+        setError("Este email está registrado pero no ha sido confirmado. Por favor, revisa tu bandeja de entrada y confirma tu email primero.")
+        return
+      }
+      
+      // Get the current origin for redirect URL
+      const origin = typeof window !== 'undefined' ? window.location.origin : ''
+      const redirectTo = `${origin}/auth/callback?type=recovery`
+      
       console.log("Enviando email de restablecimiento a:", email)
+      console.log("Redirect URL:", redirectTo)
       
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+        redirectTo: redirectTo,
       })
 
       if (error) {

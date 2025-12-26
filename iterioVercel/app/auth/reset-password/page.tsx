@@ -20,31 +20,127 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
   const [isSuccess, setIsSuccess] = useState(false)
+  const [isCheckingTokens, setIsCheckingTokens] = useState(true)
+  const [hasValidTokens, setHasValidTokens] = useState(false)
   
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
 
   useEffect(() => {
-    // Verificar si tenemos el token en la URL
-    const accessToken = searchParams.get('access_token')
-    const refreshToken = searchParams.get('refresh_token')
+    // First, clear any existing session to ensure clean state
+    const clearSession = async () => {
+      await supabase.auth.signOut({ scope: 'global' })
+    }
     
-    if (!accessToken || !refreshToken) {
+    clearSession()
+    
+    // Check if we're coming from the auth callback with recovery=true
+    const isRecovery = searchParams.get('recovery') === 'true'
+    
+    if (isRecovery) {
+      // Check for tokens in the hash
+      const hash = window.location.hash.substring(1)
+      const hashParams = new URLSearchParams(hash)
+      
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+      const type = hashParams.get('type')
+      
+      if (accessToken && type === 'recovery') {
+        // Store tokens for later use (don't set session yet)
+        setHasValidTokens(true)
+      } else {
+        setError("Enlace inválido o expirado. Por favor, solicita un nuevo restablecimiento de contraseña.")
+      }
+      
+      setIsCheckingTokens(false)
+      return
+    }
+    
+    // Otherwise, try to get tokens from both hash and query parameters
+    const hash = window.location.hash.substring(1)
+    const hashParams = new URLSearchParams(hash)
+    
+    // Also check query parameters (in case they're there instead of hash)
+    const queryParams = new URLSearchParams(window.location.search)
+    
+    // Get tokens from either hash or query params
+    const accessToken = hashParams.get('access_token') || queryParams.get('access_token') || queryParams.get('code')
+    const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token')
+    const error = hashParams.get('error') || queryParams.get('error')
+    const errorCode = hashParams.get('error_code') || queryParams.get('error_code')
+    const errorDescription = hashParams.get('error_description') || queryParams.get('error_description')
+    const type = hashParams.get('type') || queryParams.get('type')
+    
+    // Check for actual errors first
+    if (error || errorCode) {
+      // Handle error case
+      const errorMsg = errorDescription || error || 'Error desconocido'
+      setError(decodeURIComponent(errorMsg))
+      setIsCheckingTokens(false)
+      return
+    }
+    
+    // If we have a code parameter, it might be the access token
+    if (!accessToken && queryParams.get('code')) {
+      // Try to use the code as access token
+      const code = queryParams.get('code')
+      // Don't require type=recovery if we have a code parameter
+      if (!code) {
+        setError("Enlace inválido. Por favor, solicita un nuevo restablecimiento de contraseña.")
+        setIsCheckingTokens(false)
+        return
+      }
+    }
+    
+    // Check if this is a password recovery flow (only if not using code parameter)
+    if (!queryParams.get('code') && !type) {
+      setError("Enlace inválido. Por favor, solicita un nuevo restablecimiento de contraseña.")
+      setIsCheckingTokens(false)
+      return
+    }
+    
+    if (!accessToken && !queryParams.get('code')) {
       setError("Enlace inválido o expirado. Por favor, solicita un nuevo restablecimiento de contraseña.")
+      setIsCheckingTokens(false)
       return
     }
 
-    // Establecer la sesión con los tokens de la URL
+    // Set the session with the tokens from the URL
     const setSession = async () => {
-      const { error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken
-      })
+      let sessionError = null
+
+      if (accessToken && !refreshToken) {
+        // If only accessToken (from code) is present, exchange code for session
+        const { data, error } = await supabase.auth.exchangeCodeForSession(accessToken)
+        if (error) {
+          sessionError = error
+        }
+      } else if (!accessToken && queryParams.get('code')) {
+        // If code is in query params, exchange it for session
+        const code = queryParams.get('code')
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        if (error) {
+          sessionError = error
+        }
+      } else if (accessToken && refreshToken) {
+        // If both tokens are present, set the session directly
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        })
+        if (error) {
+          sessionError = error
+        }
+      } else {
+        sessionError = new Error("No access token or refresh token found.")
+      }
       
-      if (error) {
+      if (sessionError) {
         setError("Enlace inválido o expirado. Por favor, solicita un nuevo restablecimiento de contraseña.")
       }
+      setIsCheckingTokens(false)
     }
     
     setSession()
@@ -66,6 +162,30 @@ export default function ResetPasswordPage() {
       if (password !== confirmPassword) {
         setError("Las contraseñas no coinciden")
         return
+      }
+
+      // Check if we have tokens to set the session first
+      const isRecovery = searchParams.get('recovery') === 'true'
+      if (isRecovery && hasValidTokens) {
+        // Get tokens from hash and set session before updating password
+        const hash = window.location.hash.substring(1)
+        const hashParams = new URLSearchParams(hash)
+        
+        const accessToken = hashParams.get('access_token')
+        const refreshToken = hashParams.get('refresh_token')
+        
+        if (accessToken) {
+          console.log('Setting session before password update...')
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || ''
+          })
+          
+          if (sessionError) {
+            setError("Error al verificar la sesión. Por favor, solicita un nuevo restablecimiento de contraseña.")
+            return
+          }
+        }
       }
 
       // Actualizar la contraseña
@@ -117,7 +237,11 @@ export default function ResetPasswordPage() {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {!isSuccess ? (
+          {isCheckingTokens ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-700"></div>
+            </div>
+          ) : !isSuccess ? (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-semibold text-slate-700">

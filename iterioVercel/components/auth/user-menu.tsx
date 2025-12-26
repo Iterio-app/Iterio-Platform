@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { User, LogOut, Settings, FileText, Save, Shield, PlusCircle, ListChecks, Layout } from "lucide-react"
+import { completeLogout } from "@/lib/auth-cleanup"
 import { supabase, type Profile } from "@/lib/supabase"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 import { useRouter } from 'next/navigation'
@@ -107,7 +108,8 @@ export default function UserMenu({
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    // Perform complete logout including clearing all storage
+    await completeLogout()
     onLogout()
   }
 

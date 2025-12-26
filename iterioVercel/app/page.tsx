@@ -103,7 +103,18 @@ export default function TravelQuoteGenerator() {
   // Estado de visibilidad del sidebar unificado
   const [showUnifiedSidebar, setShowUnifiedSidebar] = useState(true);
 
-  // Estado para trackear si se está usando un template guardado (no editable) o temporal (editable)
+  // Handle password recovery tokens in URL hash
+  useEffect(() => {
+    const hash = window.location.hash.substring(1)
+    const hashParams = new URLSearchParams(hash)
+    
+    if (hashParams.get('access_token') && hashParams.get('type') === 'recovery') {
+      console.log('Detected recovery tokens in hash, redirecting to reset password...')
+      // Clear the hash and redirect to reset password
+      window.location.hash = ''
+      router.push('/auth/reset-password?recovery=true')
+    }
+  }, [router])
   const [isUsingStoredTemplate, setIsUsingStoredTemplate] = useState(false);
   // ID y nombre del template guardado en uso (para recargarlo y mostrarlo)
   const [storedTemplateId, setStoredTemplateId] = useState<string | null>(null);
