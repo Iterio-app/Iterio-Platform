@@ -110,34 +110,56 @@ export default function ResetPasswordPage() {
     // Set the session with the tokens from the URL
     const setSession = async () => {
       let sessionError = null
+      
+      // Log for debugging
+      console.log('Reset password - Tokens available:', {
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        hasCode: !!queryParams.get('code'),
+        url: window.location.href
+      })
 
-      if (accessToken && !refreshToken) {
-        // If only accessToken (from code) is present, exchange code for session
-        const { data, error } = await supabase.auth.exchangeCodeForSession(accessToken)
-        if (error) {
-          sessionError = error
-        }
-      } else if (!accessToken && queryParams.get('code')) {
-        // If code is in query params, exchange it for session
-        const code = queryParams.get('code')
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-        if (error) {
-          sessionError = error
-        }
-      } else if (accessToken && refreshToken) {
+      // Try to set session with available tokens
+      if (accessToken && refreshToken) {
         // If both tokens are present, set the session directly
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken
         })
         if (error) {
+          console.error('Error setting session with both tokens:', error)
           sessionError = error
+        }
+      } else if (accessToken) {
+        // If only access token is available, try to set session directly
+        // This works in production where tokens come in hash
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: ''
+        })
+        if (error) {
+          console.error('Error setting session with access token only:', error)
+          sessionError = error
+        }
+      } else if (queryParams.get('code')) {
+        // If code is in query params, exchange it for session
+        const code = queryParams.get('code')
+        if (code) {
+          console.log('Attempting to exchange code for session...')
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+          if (error) {
+            console.error('Error exchanging code for session:', error)
+            sessionError = error
+          } else {
+            console.log('Code exchanged successfully')
+          }
         }
       } else {
         sessionError = new Error("No access token or refresh token found.")
       }
       
       if (sessionError) {
+        console.error('Session setup failed:', sessionError)
         setError("Enlace inválido o expirado. Por favor, solicita un nuevo restablecimiento de contraseña.")
       }
       setIsCheckingTokens(false)
