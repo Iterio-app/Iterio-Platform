@@ -401,16 +401,34 @@ export default function TravelQuoteGenerator() {
       !hasHandledTabParam
     ) {
       const tabParam = searchParams.get('tab');
+      
+      // Log para detectar de dónde viene el parámetro
+      if (tabParam === 'form') {
+        console.log('⚠️ ACCESO DIRECTO A FORM DETECTADO', {
+          referrer: document.referrer,
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+          isNewUser: user?.user_metadata?.is_new_user
+        });
+      }
+      
       if (tabParam === 'history') {
         setActiveTab('history');
         setHasHandledTabParam(true);
         // No limpiar el query param aquí
       } else if (tabParam === 'form') {
         // Solo permitir acceso a form si el flujo se inició correctamente
-        if (flowStarted) {
+        // Además, verificar si es un usuario nuevo (primer login)
+        const isNewUser = user?.user_metadata?.is_new_user || 
+                         !user?.last_sign_in_at || 
+                         new Date(user?.created_at).getTime() === new Date(user?.last_sign_in_at).getTime();
+        
+        if (flowStarted && !isNewUser) {
           setActiveTab('form');
         } else {
           // Redirigir a history si se intenta acceder directamente sin iniciar el flujo
+          // o si es un usuario nuevo en su primer login
+          console.log('Redirigiendo a history - flujo no iniciado o usuario nuevo');
           setActiveTab('history');
           // Actualizar URL para reflejar el cambio
           if (typeof window !== 'undefined') {
@@ -428,7 +446,7 @@ export default function TravelQuoteGenerator() {
         setHasHandledTabParam(true);
       }
     }
-  }, [user, searchParams, hasHandledTabParam]);
+  }, [user, searchParams, hasHandledTabParam, flowStarted]);
 
   useEffect(() => {
     const handler = () => {
