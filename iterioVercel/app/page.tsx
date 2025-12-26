@@ -401,17 +401,6 @@ export default function TravelQuoteGenerator() {
       !hasHandledTabParam
     ) {
       const tabParam = searchParams.get('tab');
-      
-      // Log para detectar de dónde viene el parámetro
-      if (tabParam === 'form') {
-        console.log('⚠️ ACCESO DIRECTO A FORM DETECTADO', {
-          referrer: document.referrer,
-          userAgent: navigator.userAgent,
-          timestamp: new Date().toISOString(),
-          isNewUser: user?.user_metadata?.is_new_user
-        });
-      }
-      
       if (tabParam === 'history') {
         setActiveTab('history');
         setHasHandledTabParam(true);
@@ -2195,9 +2184,8 @@ export default function TravelQuoteGenerator() {
 
         {/* QuotesHistory y TemplatesManager fuera de Tabs */}
         {activeTab === 'history' && (
-          <div className="max-w-6xl mx-auto flex flex-col items-center justify-center min-h-[60vh] w-full">
-            <div className="w-full max-w-5xl">
-              <QuotesHistory
+          <div className="w-full">
+            <QuotesHistory
                 user={user}
                 onLoadQuote={loadQuote}
                 onCreateNew={() => {
@@ -2206,7 +2194,6 @@ export default function TravelQuoteGenerator() {
                   setActiveTab('form');
                 }}
               />
-            </div>
           </div>
         )}
         {activeTab === 'templates' && (
