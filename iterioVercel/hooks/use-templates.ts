@@ -461,13 +461,33 @@ export function useTemplates(user: User | null) {
     setCurrentTemplate({ ...defaultTemplate, ...config })
   }
 
-  // ✅ Sincronizar estado local con cache al montar
-  // NO hacer fetch automático - se hará cuando el usuario vaya a la tab
+  // ✅ Sincronizar estado local con cache cuando cambia el usuario
+  // Importante: NO resetear el template actual cuando el usuario sigue siendo el mismo,
+  // para no pisar la configuración que se está usando en una cotización.
   useEffect(() => {
-    // Resetear el template actual cuando cambia el usuario
-    setCurrentTemplate(defaultTemplate)
-    
-    if (templatesCache.length > 0) {
+    // Si el usuario se desloguea, resetear template y lista de templates
+    if (!user) {
+      setCurrentTemplate(defaultTemplate)
+      setTemplates([])
+      // Limpiar cache global asociado al usuario anterior
+      templatesCache = []
+      cachedUserId = null
+      lastTemplatesFetch = 0
+      return
+    }
+
+    // Si cambia el usuario (otro ID distinto), limpiar cache y resetear template
+    if (cachedUserId && cachedUserId !== user.id) {
+      templatesCache = []
+      setTemplates([])
+      setCurrentTemplate(defaultTemplate)
+      lastTemplatesFetch = 0
+      cachedUserId = user.id
+      return
+    }
+
+    // Si hay cache para este usuario, solo sincronizar la lista
+    if (templatesCache.length > 0 && cachedUserId === user.id) {
       setTemplates(templatesCache)
       console.log(`📋 [useEffect] Sincronizando con cache (${templatesCache.length} templates)`)
     }
