@@ -51,6 +51,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Lock } from 'lucide-react';
+import LockedTemplateView from '@/components/locked-template-view';
 import { FormDataForSidebar, ProcessingStatus, Template } from "@/lib/types";
 
 export default function TravelQuoteGenerator() {
@@ -119,6 +121,9 @@ export default function TravelQuoteGenerator() {
   // ID y nombre del template guardado en uso (para recargarlo y mostrarlo)
   const [storedTemplateId, setStoredTemplateId] = useState<string | null>(null);
   const [storedTemplateName, setStoredTemplateName] = useState<string | null>(null);
+  // Nuevo estado para controlar si una plantilla guardada puede ser editada para esta cotización
+  const [isTemplateEditable, setIsTemplateEditable] = useState(false);
+  const [showUnlockConfirmModal, setShowUnlockConfirmModal] = useState(false);
 
   // Calcular errores de ayuda y elementos del resumen
   const calculateHelpErrors = () => {
@@ -559,6 +564,7 @@ export default function TravelQuoteGenerator() {
     setHasUnsavedChanges(false)
     setLastSaved(null)
     setIsUsingStoredTemplate(false) // Resetear al limpiar formulario
+    setIsTemplateEditable(false)
     setStoredTemplateId(null)
     setStoredTemplateName(null)
     setFlowStarted(false) // Resetear flujo al limpiar formulario
@@ -641,8 +647,12 @@ export default function TravelQuoteGenerator() {
     }
 
     // Cargar el template guardado en la cotización
-    if (quote.template_data) {
-      setTemplateFromConfig(quote.template_data)
+    if (quote.summary_data?.isUsingStoredTemplate && quote.summary_data?.storedTemplateId) {
+      // Si usa un template guardado, cargarlo explícitamente para asegurar que es el actual
+      loadTemplateById(quote.summary_data.storedTemplateId);
+    } else if (quote.template_data) {
+      // Si es un template temporal, cargarlo desde la configuración
+      setTemplateFromConfig(quote.template_data);
     }
 
     // Cargar estado de template guardado vs temporal
@@ -650,6 +660,16 @@ export default function TravelQuoteGenerator() {
     setIsUsingStoredTemplate(quote.summary_data?.isUsingStoredTemplate ?? true)
     setStoredTemplateId(quote.summary_data?.storedTemplateId ?? null)
     setStoredTemplateName(quote.summary_data?.storedTemplateName ?? null)
+
+    // Cargar estado de editabilidad de la plantilla para esta cotización
+    const editableFromSummary = (quote.summary_data as any)?.isTemplateEditable
+    if (typeof editableFromSummary === 'boolean') {
+      setIsTemplateEditable(editableFromSummary)
+    } else {
+      // Fallback para cotizaciones antiguas: si no usa template guardado, asumir editable
+      const usingStored = quote.summary_data?.isUsingStoredTemplate ?? true
+      setIsTemplateEditable(!usingStored)
+    }
 
     setCurrentQuoteId(quote.id)
     setQuoteTitle(quote.title)
@@ -798,7 +818,7 @@ export default function TravelQuoteGenerator() {
         transfers_data: transfers,
         services_data: services,
         cruises_data: cleanCruises,
-        summary_data: { ...summaryData, currency: selectedCurrency, mostrarCantidadPasajeros, formMode: currentFormMode, totalesPorMoneda, isUsingStoredTemplate, storedTemplateId, storedTemplateName },
+        summary_data: { ...summaryData, currency: selectedCurrency, mostrarCantidadPasajeros, formMode: currentFormMode, totalesPorMoneda, isUsingStoredTemplate, storedTemplateId, storedTemplateName, isTemplateEditable },
         template_data: template,
         total_amount: Number(summaryData.total) || 0,
         client_name: clientName,
@@ -1107,12 +1127,14 @@ export default function TravelQuoteGenerator() {
     setProcessingStatus({ step: "Preparando datos...", progress: 20 })
 
     try {
-      // Si usa template guardado, recargar los datos más recientes del template
+      // Si usa template guardado y NO se desbloqueó para esta cotización,
+      // recargar los datos más recientes del template desde la DB.
+      // Si ya se desbloqueó (edición por cotización), usamos siempre el template del estado actual.
       let templateToUse = template;
       console.log(`🎨 [generatePdf] Template inicial:`, template);
       console.log(`🔍 [generatePdf] isUsingStoredTemplate: ${isUsingStoredTemplate}, storedTemplateId: ${storedTemplateId}`);
       
-      if (isUsingStoredTemplate && storedTemplateId) {
+      if (isUsingStoredTemplate && storedTemplateId && !isTemplateEditable) {
         setProcessingStatus({ step: "Cargando template actualizado...", progress: 30 })
         console.log(`📥 [generatePdf] Cargando template ${storedTemplateId}...`);
         const freshTemplate = await loadTemplateById(storedTemplateId);
@@ -1618,6 +1640,7 @@ export default function TravelQuoteGenerator() {
       await loadTemplateById(tpl.id);
     }
     setIsUsingStoredTemplate(true); // Marcar que se usa template guardado (no editable)
+    setIsTemplateEditable(false);
     setStoredTemplateId(tpl.id); // Guardar ID para recargar cambios del template
     setStoredTemplateName(tpl.name); // Guardar nombre para mostrar al usuario
     setShowTemplateSelectModal(false);
@@ -1641,6 +1664,7 @@ export default function TravelQuoteGenerator() {
       validityText: "Esta cotización es válida por 15 días desde la fecha de emisión.",
     });
     setIsUsingStoredTemplate(false); // Marcar que se usa template temporal (editable)
+    setIsTemplateEditable(true);
     setStoredTemplateId(null); // Limpiar ID de template
     setStoredTemplateName(null); // Limpiar nombre de template
     setShowTemplateSelectModal(false);
@@ -1824,6 +1848,32 @@ export default function TravelQuoteGenerator() {
           </Dialog>
         )}
 
+        {/* Modal de confirmación para desbloquear template */}
+        <Dialog open={showUnlockConfirmModal} onOpenChange={setShowUnlockConfirmModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar Desbloqueo</DialogTitle>
+              <DialogDescription>
+                Vas a editar la plantilla solo para esta cotización. La plantilla original no se modificará.
+                ¿Estás seguro de que quieres continuar?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowUnlockConfirmModal(false)}>Cancelar</Button>
+              <Button onClick={() => {
+                setIsTemplateEditable(true);
+                // A partir de este momento, la cotización usa una copia editable del template
+                // y deja de depender del template guardado para generación de PDF.
+                setIsUsingStoredTemplate(false);
+                // Opcional: Clonar el template para asegurar que no se modifica el original en el estado
+                const clonedTemplate = JSON.parse(JSON.stringify(template));
+                updateTemplate(clonedTemplate);
+                setShowUnlockConfirmModal(false);
+              }}>Sí, Desbloquear</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Stepper y Tabs: solo para customize, form y result */}
         {activeTab !== 'history' && activeTab !== 'templates' && (
           <>
@@ -1834,14 +1884,9 @@ export default function TravelQuoteGenerator() {
                   ? formStep + 1 // +1 porque el paso 0 es Personalizar
                   : wizardStepIndex
               }
-              disabledSteps={isUsingStoredTemplate ? [0] : []} // Deshabilitar paso 0 si usa template guardado
+              disabledSteps={[]} // La navegación ahora es libre, el contenido se encarga de bloquear
               onStepClick={(idx) => {
-                // Si es el paso 0 (Personalizar), solo permitir si NO es template guardado
-                if (idx === 0) {
-                  if (!isUsingStoredTemplate) {
-                    setActiveTab('customize');
-                  }
-                }
+                if (idx === 0) setActiveTab('customize');
                 else if (idx >= 1 && idx <= 3) { setActiveTab('form'); setFormStep(idx - 1); }
                 else if (idx === 4) setActiveTab('result');
               }}
@@ -1857,13 +1902,19 @@ export default function TravelQuoteGenerator() {
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger 
                   value="customize" 
-                  disabled={isUsingStoredTemplate}
-                  className={isUsingStoredTemplate ? "opacity-50 cursor-not-allowed" : ""}
-                  title={isUsingStoredTemplate ? "No puedes editar un template guardado. Para modificarlo, ve a 'Mis Templates'." : "Personalizar template"}
+                  className="relative"
+                  title={isUsingStoredTemplate && !isTemplateEditable ? "Edita la plantilla solo para esta cotización" : "Personalizar plantilla"}
                 >
                   Personalizar
-                  {isUsingStoredTemplate && (
-                    <span className="ml-1 text-xs">🔒</span>
+                  {(isUsingStoredTemplate && !isTemplateEditable) && (
+                    <Lock className="ml-2 h-4 w-4 text-gray-500" />
+                  )}
+                  {/* Indicadores de autoguardado también en Customize cuando es editable */}
+                  {(!isUsingStoredTemplate || isTemplateEditable) && hasUnsavedChanges && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
+                  )}
+                  {(!isUsingStoredTemplate || isTemplateEditable) && isSaving && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-spin"></div>
                   )}
                 </TabsTrigger>
                 <TabsTrigger value="form" className="relative">
@@ -1878,7 +1929,29 @@ export default function TravelQuoteGenerator() {
                 <TabsTrigger value="result">Resultado</TabsTrigger>
               </TabsList>
               <TabsContent value="customize">
-                <TemplateCustomizer template={template} onTemplateChange={updateTemplate} />
+                {/* Indicador de autoguardado en Customize solo cuando la plantilla es editable para esta cotización */}
+                {(!isUsingStoredTemplate || isTemplateEditable) && (
+                  <div className="w-full flex justify-center mb-4">
+                    <SaveStatusIndicator 
+                      isSaving={isSaving}
+                      lastSaved={lastSaved}
+                      hasUnsavedChanges={hasUnsavedChanges}
+                    />
+                  </div>
+                )}
+
+                {isUsingStoredTemplate && !isTemplateEditable ? (
+                  <LockedTemplateView onUnlock={() => setShowUnlockConfirmModal(true)} />
+                ) : (
+                  <TemplateCustomizer
+                    template={template}
+                    onTemplateChange={(newTemplate) => {
+                      updateTemplate(newTemplate);
+                      // Marcar cambios para que el autosave también persista la plantilla
+                      markAsChanged();
+                    }}
+                  />
+                )}
               </TabsContent>
               <TabsContent value="form" className="space-y-6">
                 {/* Indicadores de estado: Template en uso (izquierda) + Autoguardado (centro) */}
